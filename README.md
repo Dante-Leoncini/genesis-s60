@@ -10,8 +10,8 @@ suma una interfaz propia pensada para el teléfono: menú de ROMs, hasta **4 man
 
 Los instaladores están en [`sis/`](sis/), con la versión en el nombre:
 
-- **N95** y otros S60 3rd / 5th: [`sis/segaw3d_n95_1.1.sisx`](sis/segaw3d_n95_1.1.sisx)
-- **N8** y otros Symbian^3 / Anna / Belle: [`sis/segaw3d_n8_1.1.sisx`](sis/segaw3d_n8_1.1.sisx)
+- **N95** y otros S60 3rd / 5th: [`sis/segaw3d_n95_1.2.sisx`](sis/segaw3d_n95_1.2.sisx)
+- **N8** y otros Symbian^3 / Anna / Belle: [`sis/segaw3d_n8_1.2.sisx`](sis/segaw3d_n8_1.2.sisx)
 
 Las dos usan el mismo nombre en el teléfono: una reemplaza a la otra. Están firmados con un certificado propio: el
 teléfono tiene que aceptar aplicaciones sin firmar de Nokia (Administrador de aplicaciones > Configuración >
@@ -55,8 +55,8 @@ En el N95, Mega Bomberman en batalla de 4 anda a 60 fps. Sonic & Knuckles anda c
 
 En el menú: arriba y abajo para elegir, OK / cruz para jugar, **Start** para las opciones. La tecla derecha de abajo
 vuelve a la partida y la última fila, "[ Salir ]", cierra el emulador (en el N8: los botones de abajo, "Volver al
-juego" y "Salir"). Las teclas de volumen del costado cambian el
-volumen.
+juego" y "Salir"). En las opciones, "Cerrar emulador" (con OK) también lo cierra. Las teclas de volumen del costado
+cambian el volumen.
 
 ## Las ROMs
 

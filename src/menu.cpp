@@ -42,7 +42,7 @@ Lista gRomsL = { 0, 0 }, gOpcL = { 0, 0 };
 MenuOpciones* gOpciones = 0;
 bool gEnOpciones = false;
 enum { OPC_FPS, OPC_ESCALA, OPC_SUAVE, OPC_TACTIL, OPC_DIBUJO, OPC_MULTITAP, OPC_HZ, OPC_FM, OPC_FILTRO, OPC_IDIOMA,
-       OPC_VOLVER };
+       OPC_VOLVER, OPC_CERRAR };
 int gOpcs[16];   // las que se muestran (OPC_*), en orden
 int gOpcsN = 0;
 
@@ -168,11 +168,13 @@ void armar_opciones() {
     gOpcs[gOpcsN++] = OPC_FILTRO;
     gOpcs[gOpcsN++] = OPC_IDIOMA;
     gOpcs[gOpcsN++] = OPC_VOLVER;
+    gOpcs[gOpcsN++] = OPC_CERRAR;
 }
 
-// cambia la opcion 'o' un paso (+1 / -1); OPC_VOLVER cierra las opciones
+// cambia la opcion 'o' un paso (+1 / -1); OPC_VOLVER cierra las opciones y OPC_CERRAR el emulador
 MenuAccion cambiar_opcion(int o, int paso) {
     gCambio = true;
+    if (o == OPC_CERRAR) return MENU_SALIR;
     if (o == OPC_VOLVER) {
         gEnOpciones = false;
         return MENU_NADA;
@@ -216,6 +218,7 @@ void opcion_texto(int o, char* nombre, char* valor, int n) {
     case OPC_FM: k = tr("FM alta calidad", "High quality FM"); v = si_no(p && p->fmAlta); break;
     case OPC_FILTRO: k = tr("Filtro de sonido", "Sound filter"); v = si_no(p && p->filtro); break;
     case OPC_IDIOMA: k = "Idioma / Language"; v = idioma_nombre(p ? p->idioma : 0); break;
+    case OPC_CERRAR: k = tr("Cerrar emulador", "Exit emulator"); break;
     default: k = tr("Volver", "Back"); break;
     }
     snprintf(nombre, n, "%s", k);
@@ -237,7 +240,8 @@ MenuAccion actualizar_opciones(int botones, int nuevos, uint64_t ahora) {
         seguir(gOpcL, gOpcsN);
         return MENU_NADA;
     }
-    // OK, izquierda o derecha cambian la opcion elegida
+    // OK, izquierda o derecha cambian la opcion elegida (cerrar el emulador, solo con OK)
+    if (!elegir && gOpcs[gOpcL.elegida] == OPC_CERRAR) return MENU_NADA;
     return cambiar_opcion(gOpcs[gOpcL.elegida], (mueve & MENU_IZQ) ? -1 : 1);
 }
 
