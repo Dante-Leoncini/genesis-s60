@@ -9,6 +9,13 @@
 void juego_iniciar(int hzSonido);
 // true: hay un cuadro nuevo para presentar; false: todavia no toca (no presentar: la plataforma espera un poco)
 bool juego_cuadro();
+// LA PANTALLA EXTERNA (la TV del N8: RCA o HDMI): a donde va la imagen. Sin TV, el telefono; clonar = el juego en
+// las dos; solo la tele = el telefono en negro; tele + controles = el telefono muestra solo los controles tactiles
+// (es el mando). En el menu, el telefono lo muestra igual (para tocarlo)
+enum { SALIDA_TELEFONO, SALIDA_CLONAR, SALIDA_TV, SALIDA_TV_CONTROLES };
+void juego_salida(int salida);
+// despues de juego_cuadro (con la superficie de la TV puesta): la misma imagen en la TV, de w x h
+void juego_dibujar_tv(int w, int h);
 // la pantalla se borro (la app volvio al frente, otra ventana la tapo): el proximo cuadro se dibuja entero aunque no
 // haya nada nuevo
 void juego_redibujar();

@@ -50,8 +50,13 @@ uint32_t emu_imagen_numero(void);
 void emu_sonido_mezclar(int* acumulador, int frames);
 // cuanto sonido hay esperando (muestras estereo)
 int emu_sonido_en_cola(void);
+// cuanto sobra (+) o falta (-) en la cola, promediado (muestras de la consola): el juego acomoda la velocidad de la
+// consola para que la cola no se vacie ni se llene (el sonido se lee a paso fijo)
+int emu_sonido_desvio(void);
 // el volumen del sonido de la consola: 0..256 (el volumen general del Core no le llega a W3dAudioFuente)
 void emu_sonido_volumen(int v);
+// (las pruebas en la PC) guarda el sonido de la consola en un archivo PCM crudo: estereo, 16 bits
+void emu_sonido_grabar(const char* ruta);
 // la calidad del sonido: 'filtro' = un pasabajos (suaviza lo agudo; casi no cuesta); 'fmAlta' = el FM a su frecuencia
 // original (~53 kHz) y bajado con un filtro FIR (sin el aliasing de los agudos, como los anillos de Sonic; ~2,4 veces
 // el trabajo del FM). Vale en el momento, con o sin juego cargado

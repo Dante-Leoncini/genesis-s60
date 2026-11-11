@@ -316,3 +316,20 @@ void pantalla_rectangulo(int, int, int x, int y, int w, int h, uint32_t rgba) {
         else gCambiado.BoundingRect(r);
     }
 }
+
+// (en el N95 la imagen va siempre 1:1: la escala y el filtro no cambian nada, y no hay sprites)
+void pantalla_modo(int, int) {}
+
+bool pantalla_a_imagen(int sx, int sy, int* ix, int* iy) {
+    if (gAncho <= 0 || gAlto <= 0) return false;
+    *ix = sx - gAntesX;
+    *iy = sy - gAntesY;
+    return *ix >= 0 && *iy >= 0 && *ix < gAncho && *iy < gAlto;
+}
+
+int pantalla_sprite_crear(const uint32_t*, int, int) { return -1; }
+void pantalla_sprite(int, int, int, int, int, float) {}
+
+// (el N95 no maneja pantallas externas: el TV-out clona la del telefono)
+void pantalla_dibujar_externa(int, int) {}
+void pantalla_limpiar(int, int) {}

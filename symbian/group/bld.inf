@@ -7,3 +7,4 @@ DEFAULT ARMV5
 PRJ_MMPFILES
 gnumakefile icono.mk
 segaw3d.mmp
+segaw3d_belle.mmp

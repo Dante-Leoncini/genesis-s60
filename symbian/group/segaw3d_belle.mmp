@@ -1,0 +1,7 @@
+// segaw3d_belle.mmp: la variante de Symbian^3 / Anna / Belle (N8, C7, E7, 808...): OpenGL ES 2.0, la pantalla
+// tactil (varios dedos) y la TV (RCA o HDMI). Comparte TODO con segaw3d.mmp: ahi estan las fuentes y los
+// #ifdef SEGA_MMP_BELLE que cambian. En el codigo la macro es SEGA_BELLE: otro nombre, porque el .mmp pasa por el
+// preprocesador y un #define SEGA_BELLE dejaria vacia la linea MACRO SEGA_BELLE.
+// El instalador del N8 lo instala como segaw3d.exe (la misma UID: una variante reemplaza a la otra).
+#define SEGA_MMP_BELLE
+#include "segaw3d.mmp"

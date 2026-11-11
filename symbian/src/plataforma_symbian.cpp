@@ -170,3 +170,15 @@ bool plat_tecla(int t) { return t >= 0 && t < TECLAS && gTeclas[t]; }
 bool plat_mando(int i, w3dEngine::MandoEstado& e) { return w3dEngine::MandoLeer(i, e); }
 
 void plat_salir() { gSalir = true; }
+
+bool plat_espanol() {
+    const TLanguage l = User::Language();
+    return l == ELangSpanish || l == ELangLatinAmericanSpanish;
+}
+
+#ifndef SEGA_BELLE
+// (el N95 no tiene pantalla tactil ni GPU para escalar: la imagen va 1:1 por CPU; en el N8 los pone el contenedor)
+bool plat_es_tactil() { return false; }
+int plat_toques(Toque*, int) { return 0; }
+bool plat_escala() { return false; }
+#endif

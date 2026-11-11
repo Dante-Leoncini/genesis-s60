@@ -11,7 +11,8 @@
 //     perfil=1                          el perfil al log cada 2 segundos
 // datos/ultima.txt: la ultima ROM jugada (la escribe el emulador)
 // datos/opciones.txt: las opciones del menu (Start): fps=0/1, multitap=auto/siempre/nunca, filtro=0/1, fm_alta=0/1,
-//     hz=22050/32000/44100, rapido=0/1 (el dibujo rapido de PicoDrive)
+//     hz=22050/32000/44100, rapido=0/1 (el dibujo rapido de PicoDrive), escala=0..3 (ESCALA_*), suave=0/1,
+//     tactil=0/1/2 (auto / si / no: los controles en la pantalla)
 // datos/prueba.txt (las pruebas, opcional):
 //     teclas=600:start,610:nada,...     botones apretados solos desde cada cuadro de la consola (ver juego_guion)
 //     salir=90                          salir a los 90 segundos
@@ -20,6 +21,7 @@
 #include "menu.h"
 #include "pantalla.h"
 #include "plataforma.h"
+#include "tactil.h"
 #include "W3dAudio.h"
 #include "w3dlog.h"
 #include <stdio.h>
@@ -69,7 +71,23 @@ int gPresentados = 0, gEmulados = 0, gSaltados = 0;
 char gRom[512] = "";
 char gCarpeta[512] = "";
 int gEntrada = -1;   // -1 = segun la opcion de multitap
-MenuOpciones gOpc = { 0, MULTITAP_AUTO, 0, 0, 0, 0 };
+MenuOpciones gOpc = { 0, MULTITAP_AUTO, 0, 0, 0, 0, ESCALA_AJUSTAR, 0, TACTIL_AUTO, IDIOMA_AUTO };
+// la pantalla tactil: los controles en pantalla se pueden usar, y el dedo que maneja el menu
+bool gTactilListo = false;
+int gDedoMenu = -1, gMenuDedoX = 0, gMenuDedoY = 0;
+// al pasar del juego al menu (o al reves) los dedos que siguen apoyados no cuentan hasta levantarlos todos: el que
+// toco el boton del menu caeria en OPCIONES, y el que toco VOLVER, en un control
+bool gEsperarSoltar = false;
+// a donde va la imagen (juego_salida: la TV del N8)
+int gSalida = SALIDA_TELEFONO;
+
+// true mientras haya que esperar que se levanten los dedos
+bool esperando_soltar() {
+    if (!gEsperarSoltar) return false;
+    Toque t[10];
+    if (plat_toques(t, 10) == 0) gEsperarSoltar = false;
+    return gEsperarSoltar;
+}
 // las frecuencias del sonido que se pueden elegir (MenuOpciones::hz)
 const int HZ_SONIDO[3] = { 22050, 32000, 44100 };
 // el contador de FPS: los cuadros presentados en el ultimo segundo
@@ -134,9 +152,11 @@ void opciones(bool escribir) {
     FILE* f = fopen(ruta, escribir ? "w" : "r");
     if (!f) return;
     if (escribir) {
-        fprintf(f, "fps=%d\nmultitap=%s\nfiltro=%d\nfm_alta=%d\nhz=%d\nrapido=%d\n", gOpc.fps,
+        fprintf(f, "fps=%d\nmultitap=%s\nfiltro=%d\nfm_alta=%d\nhz=%d\nrapido=%d\nescala=%d\nsuave=%d\ntactil=%d\nidioma=%s\n",
+                gOpc.fps,
                 gOpc.multitap == MULTITAP_SIEMPRE ? "siempre" : gOpc.multitap == MULTITAP_NUNCA ? "nunca" : "auto",
-                gOpc.filtro, gOpc.fmAlta, HZ_SONIDO[gOpc.hz], gOpc.rapido);
+                gOpc.filtro, gOpc.fmAlta, HZ_SONIDO[gOpc.hz], gOpc.rapido, gOpc.escala, gOpc.suave, gOpc.tactil,
+                gOpc.idioma == IDIOMA_ES ? "es" : gOpc.idioma == IDIOMA_EN ? "en" : "auto");
     } else {
         char linea[128];
         bool conHz = false;
@@ -149,6 +169,12 @@ void opciones(bool escribir) {
             else if (!strncmp(linea, "filtro=", 7)) gOpc.filtro = atoi(linea + 7) != 0;
             else if (!strncmp(linea, "fm_alta=", 8)) gOpc.fmAlta = atoi(linea + 8) != 0;
             else if (!strncmp(linea, "rapido=", 7)) gOpc.rapido = atoi(linea + 7) != 0;
+            else if (!strncmp(linea, "escala=", 7)) gOpc.escala = atoi(linea + 7) % ESCALAS;
+            else if (!strncmp(linea, "suave=", 6)) gOpc.suave = atoi(linea + 6) != 0;
+            else if (!strncmp(linea, "tactil=", 7)) gOpc.tactil = atoi(linea + 7) % 3;
+            else if (!strcmp(linea, "idioma=es")) gOpc.idioma = IDIOMA_ES;
+            else if (!strcmp(linea, "idioma=en")) gOpc.idioma = IDIOMA_EN;
+            else if (!strcmp(linea, "idioma=auto")) gOpc.idioma = IDIOMA_AUTO;
             else if (!strncmp(linea, "hz=", 3)) {
                 const int hz = atoi(linea + 3);
                 gOpc.hz = hz >= 44100 ? 2 : hz >= 32000 ? 1 : 0;
@@ -333,11 +359,11 @@ void perfil_cuadro(uint64_t ahora) {
     if (paso < 2000000) return;
     const float s = (float)paso * 1e-6f;
     w3dLogf("perfil: %.1f fps en pantalla, %.1f cuadros de consola/s (%d sin dibujar); emu %.2f ms/cuadro, "
-            "dibujo %.2f ms (subida %.2f), swap %.2f ms; sonido en cola %d",
+            "dibujo %.2f ms (subida %.2f), swap %.2f ms; sonido en cola %d (desvio %d)",
             gPresentados / s, gEmulados / s, gSaltados, gEmulados ? (float)gEmuUs / 1000.0f / gEmulados : 0.0f,
             gPresentados ? (float)gDibujoUs / 1000.0f / gPresentados : 0.0f,
             gPresentados ? (float)gSubidaUs / 1000.0f / gPresentados : 0.0f,
-            gPresentados ? (float)gSwapUs / 1000.0f / gPresentados : 0.0f, emu_sonido_en_cola());
+            gPresentados ? (float)gSwapUs / 1000.0f / gPresentados : 0.0f, emu_sonido_en_cola(), emu_sonido_desvio());
     gPerfilDesde = ahora;
     w3dLogf("perfil: emu dibujando %.2f ms (%d), sin dibujar %.2f ms (%d)",
             gEmuConDibujo ? (float)gEmuConDibujoUs / 1000.0f / gEmuConDibujo : 0.0f, gEmuConDibujo,
@@ -355,6 +381,46 @@ void cambiar_hz() {
     gHzConsola = HZ_SONIDO[gOpc.hz];
     emu_sonido_hz(gHzConsola);
     w3dLogf("juego: sonido de la consola a %d Hz (la salida a %d)", gHzConsola, W3dAudioRate());
+}
+
+// los controles en la pantalla: con la opcion en SI, o en AUTO cuando no hay ningun mando conectado
+bool tactil_visible() {
+    if (!gTactilListo) return false;
+    if (gSalida == SALIDA_TV_CONTROLES) return true;   // (el telefono es el mando)
+    if (gOpc.tactil == TACTIL_NO) return false;
+    return gOpc.tactil == TACTIL_SI || gConectados == 0;
+}
+
+// EL DEDO EN EL MENU: el primero que se apoya lo maneja (apoyar, mover, soltar), en pixeles de la imagen del menu
+MenuAccion toques_menu() {
+    if (esperando_soltar()) return MENU_NADA;
+    Toque t[10];
+    const int n = plat_toques(t, 10);
+    int k = -1;
+    for (int i = 0; i < n; i++)
+        if (t[i].id == gDedoMenu) k = i;
+    if (gDedoMenu >= 0 && k < 0) {   // (se levanto: soltar donde estaba)
+        gDedoMenu = -1;
+        return menu_toque(TOQUE_SUELTA, gMenuDedoX, gMenuDedoY);
+    }
+    if (gDedoMenu < 0 && n > 0) {
+        int x = 0, y = 0;
+        pantalla_a_imagen(t[0].x, t[0].y, &x, &y);
+        gDedoMenu = t[0].id;
+        gMenuDedoX = x;
+        gMenuDedoY = y;
+        return menu_toque(TOQUE_APOYA, x, y);
+    }
+    if (k >= 0) {
+        int x = 0, y = 0;
+        pantalla_a_imagen(t[k].x, t[k].y, &x, &y);
+        if (x != gMenuDedoX || y != gMenuDedoY) {
+            gMenuDedoX = x;
+            gMenuDedoY = y;
+            return menu_toque(TOQUE_MUEVE, x, y);
+        }
+    }
+    return MENU_NADA;
 }
 
 // --------------------------------------------------------------------------------- el menu y la partida
@@ -377,6 +443,8 @@ bool cargar(const char* ruta) {
 }
 
 void abrir_menu() {
+    gEsperarSoltar = true;
+    gDedoMenu = -1;
     char ultimaRom[512];
     ultima(ultimaRom, sizeof(ultimaRom), false);
     menu_abrir(gCarpeta, gCargada ? gRom : ultimaRom, gCargada);
@@ -385,6 +453,8 @@ void abrir_menu() {
 }
 
 void a_la_partida() {
+    gEsperarSoltar = true;
+    gDedoMenu = -1;
     gEnMenu = false;
     gRelojPuesto = false;
     gImagenSubida = 0xffffffff;   // (la imagen de la consola de nuevo en la pantalla)
@@ -411,7 +481,8 @@ bool cuadro_menu(int pw, int ph, uint64_t ahora) {
     if (todos & MD_START) b |= MENU_OPCIONES;
     if ((todos & MD_C) || plat_tecla(TK_BORRAR) || plat_tecla(TK_SOFT_DER) || gGuia) b |= MENU_VOLVER;
     menu_mandos(gJugadores);
-    const MenuAccion accion = menu_actualizar(b, ahora);
+    MenuAccion accion = menu_actualizar(b, ahora);
+    if (accion == MENU_NADA) accion = toques_menu();
     if (accion == MENU_JUGAR) {
         w3dLogf("juego: elegida con los botones 0x%x (teclas y mandos 0x%x 0x%x 0x%x 0x%x)", b, pads[0], pads[1],
                 pads[2], pads[3]);
@@ -431,7 +502,8 @@ bool cuadro_menu(int pw, int ph, uint64_t ahora) {
         emu_sonido_calidad(gOpc.filtro, gOpc.fmAlta);
         if (HZ_SONIDO[gOpc.hz] != gHzConsola) cambiar_hz();
         emu_dibujo_rapido(gOpc.rapido);
-        w3dLogf("juego: opciones fps %d, multitap %d", gOpc.fps, gOpc.multitap);
+        w3dLogf("juego: opciones fps %d, multitap %d, escala %d, suave %d, tactil %d", gOpc.fps, gOpc.multitap,
+                gOpc.escala, gOpc.suave, gOpc.tactil);
     } else if (accion == MENU_SALIR) {
         plat_salir();
         return false;
@@ -442,7 +514,11 @@ bool cuadro_menu(int pw, int ph, uint64_t ahora) {
         return false;
     }
     if (!menu_dibujar(gMenuImagen)) return false;
-    pantalla_subir(gMenuImagen, MENU_ANCHO, MENU_ALTO);
+    int mw = MENU_ANCHO, mh = MENU_ALTO;
+    menu_tamano(&mw, &mh);
+    // (el menu, lo mas grande que entra y pixelado: en el N8, 320x180 al doble)
+    pantalla_modo(ESCALA_AJUSTAR, 0);
+    pantalla_subir(gMenuImagen, mw, mh);
     pantalla_dibujar(pw, ph);
     return true;
 }
@@ -462,8 +538,16 @@ void juego_iniciar(int hzSonido) {
     gOpc.hz = hzSonido >= 44100 ? 2 : hzSonido >= 32000 ? 1 : 0;
     opciones(false);
     menu_opciones(&gOpc);
+    menu_idioma_sistema(plat_espanol());
     leer_prueba();
     pantalla_iniciar();
+    // la pantalla tactil: el menu de filas grandes (320x180, al doble en el N8) y los controles de Mega Drive
+    if (plat_es_tactil()) {
+        menu_configurar(320, 180, 22, true, plat_escala());
+        gTactilListo = tactil_iniciar();
+    } else {
+        menu_configurar(MENU_ANCHO, MENU_ALTO, 9, false, plat_escala());
+    }
     // (la salida de audio siempre a 44100: la consola genera a la frecuencia de la opcion y la cola convierte)
     W3dAudioInit(44100);
     gHzConsola = HZ_SONIDO[gOpc.hz];
@@ -496,10 +580,17 @@ bool juego_cuadro() {
 
     uint16_t pads[4];
     leer_pads(pads);
+    // los controles en la pantalla: el jugador 1 (junto con el teclado y su mando)
+    bool menuTactil = false;
+    if (tactil_visible() && !esperando_soltar()) {
+        Toque t[10];
+        const int n = plat_toques(t, 10);
+        pads[0] |= tactil_leer(t, n, pw, ph, &menuTactil);
+    }
     // al menu: la tecla de abajo a la derecha, la C del telefono o Select / PS de un mando (al apretarlos, no mientras
     // siguen apretados)
     const bool borrar = plat_tecla(TK_BORRAR);
-    const bool alMenu = softDerNueva || (borrar && !gBorrarAntes) || (gGuia && !gGuiaAntes);
+    const bool alMenu = softDerNueva || menuTactil || (borrar && !gBorrarAntes) || (gGuia && !gGuiaAntes);
     gBorrarAntes = borrar;
     gGuiaAntes = gGuia;
     if (alMenu) {
@@ -508,7 +599,16 @@ bool juego_cuadro() {
     }
     // los cuadros de la consola que tocan hasta ahora (al reloj de la consola: si el telefono se atrasa, los que
     // faltan se corren sin dibujar; mas de 4 de atraso, se larga de nuevo)
-    const uint64_t periodo = 1000000 / (uint64_t)emu_hz_video();
+    // (el reloj del sonido y el del telefono no van iguales: si en la cola sobra sonido la consola va un poco mas
+    // lenta, si falta un poco mas rapida; 100 ms de diferencia = 1 %, hasta 0,5 %: no se nota en la imagen)
+    int64_t periodo = 1000000 / (int64_t)emu_hz_video();
+    {
+        int64_t ajuste = (int64_t)emu_sonido_desvio() * periodo / gHzConsola * 10 / 100;
+        const int64_t tope = periodo / 200;
+        if (ajuste > tope) ajuste = tope;
+        if (ajuste < -tope) ajuste = -tope;
+        periodo += ajuste;
+    }
     if (!gRelojPuesto || ahora > gReloj + 4 * periodo) {
         gReloj = ahora;
         gRelojPuesto = true;
@@ -575,7 +675,11 @@ bool juego_cuadro() {
         pantalla_subir(img, w, h);
         gSubidaUs += plat_ahora_us() - ts;
     }
-    pantalla_dibujar(pw, ph);
+    pantalla_modo(gOpc.escala, gOpc.suave);
+    // (con el juego en la TV, el telefono en negro: solo los controles, si van)
+    if (gSalida == SALIDA_TV || gSalida == SALIDA_TV_CONTROLES) pantalla_limpiar(pw, ph);
+    else pantalla_dibujar(pw, ph);
+    if (tactil_visible()) tactil_dibujar(pw, ph);
     dibujar_aviso(pw, ph);
     dibujar_volumen(pw, ph);
     gDibujoUs += plat_ahora_us() - t1;
@@ -591,6 +695,20 @@ bool juego_cuadro() {
 }
 
 void juego_swap_us(uint64_t us) { gSwapUs += us; }
+
+void juego_salida(int salida) {
+    if (salida == gSalida) return;
+    gSalida = salida;
+    w3dLogf("juego: salida %d (0 telefono, 1 clonar, 2 solo la tele, 3 tele + controles)", salida);
+    juego_redibujar();
+}
+
+void juego_dibujar_tv(int w, int h) {
+    if (gEnMenu) pantalla_modo(ESCALA_AJUSTAR, 0);
+    else pantalla_modo(gOpc.escala, gOpc.suave);
+    pantalla_dibujar_externa(w, h);
+    dibujar_volumen(w, h);
+}
 
 void juego_redibujar() {
     gRedibujar = true;

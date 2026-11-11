@@ -3,18 +3,23 @@
 //  mismo camino que el GLES 1.1 del telefono) y el teclado haciendo de las teclas del telefono.
 //
 //      build/segaw3d_pc [--datos carpeta/] [--tam 640x480] [--capturas c1,c2,...] [--salir-en cuadro]
-//                       [--teclas cuadro:tecla+tecla,...]
+//                       [--teclas cuadro:tecla+tecla,...] [--tactil] [--toques ms:x:y:dur,...]
 //
 //  Teclas: flechas = la cruceta; Z X C = A B C; Enter = Start; A S D = X Y Z; Tab = Mode; Borrar = la C del
 //  telefono (el menu); Re Pag / Av Pag (o + / - del teclado numerico) = el volumen; Escape sale. Los
 //  joysticks: los que SDL reconoce como mando, el primero es el jugador 1 (junto con el teclado). --capturas guarda
 //  esos cuadros en build/captura_<cuadro>.ppm; --teclas: los botones que se aprietan solos desde cada cuadro de la
 //  consola (ver juego_guion en juego.h: "600:start,610:nada,3350:abajo+j3").
+//  --tactil: como una pantalla tactil (el N8): el mouse es un dedo (el boton izquierdo apoyado), el menu de filas
+//  grandes y los controles en la pantalla. --toques: dedos solos para las pruebas, a los ms desde que arranca,
+//  en (x, y) de la ventana, durante dur ms (varios a la vez valen: son dedos distintos).
 // ---------------------------------------------------------------------------------------------------------------
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
 #include "../plataforma.h"
 #include "../juego.h"
+#include "../tactil.h"
+#include "../emu.h"
 #include "w3dlog.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +32,9 @@ bool gSalir = false;
 char gDatos[512] = "datos/";
 Uint64 gFrecuencia = 1;
 SDL_GameController* gMandos[w3dEngine::MandosMax];
+bool gTactil = false;
+const char* gToques = "";
+uint64_t gInicioUs = 0;
 
 int tecla_de(SDL_Keycode k) {
     switch (k) {
@@ -71,6 +79,50 @@ void plat_pantalla(int& ancho, int& alto) { SDL_GL_GetDrawableSize(gVentana, &an
 bool plat_tecla(int t) { return t >= 0 && t < TECLAS && gTeclas[t]; }
 void plat_salir() { gSalir = true; }
 
+bool plat_es_tactil() { return gTactil; }
+bool plat_escala() { return true; }
+
+#ifdef _WIN32
+extern "C" __declspec(dllimport) unsigned short __stdcall GetUserDefaultUILanguage(void);
+#endif
+bool plat_espanol() {
+    const char* lang = getenv("LANG");
+    if (lang && lang[0]) return !strncmp(lang, "es", 2);
+#ifdef _WIN32
+    return (GetUserDefaultUILanguage() & 0x3FF) == 0x0A;   // (LANG_SPANISH)
+#else
+    return false;
+#endif
+}
+
+// el mouse (el boton izquierdo) es el dedo 0; los de --toques, los dedos 100 en adelante
+int plat_toques(Toque* t, int max) {
+    int n = 0;
+    if (!gTactil) return 0;
+    int x = 0, y = 0;
+    if ((SDL_GetMouseState(&x, &y) & SDL_BUTTON(SDL_BUTTON_LEFT)) && n < max) {
+        t[n].id = 0;
+        t[n].x = x;
+        t[n].y = y;
+        n++;
+    }
+    const int ms = (int)((plat_ahora_us() - gInicioUs) / 1000);
+    const char* p = gToques;
+    for (int k = 0; *p && n < max; k++) {
+        int desde = 0, tx = 0, ty = 0, dur = 0;
+        if (sscanf(p, "%d:%d:%d:%d", &desde, &tx, &ty, &dur) == 4 && ms >= desde && ms < desde + dur) {
+            t[n].id = 100 + k;
+            t[n].x = tx;
+            t[n].y = ty;
+            n++;
+        }
+        const char* coma = strchr(p, ',');
+        if (!coma) break;
+        p = coma + 1;
+    }
+    return n;
+}
+
 bool plat_mando(int i, w3dEngine::MandoEstado& e) {
     using namespace w3dEngine;
     if (i < 0 || i >= MandosMax) return false;
@@ -98,6 +150,12 @@ int main(int argc, char** argv) {
         else if (!strcmp(argv[i], "--capturas") && i + 1 < argc) capturas = argv[++i];
         else if (!strcmp(argv[i], "--salir-en") && i + 1 < argc) salir_en = atoi(argv[++i]);
         else if (!strcmp(argv[i], "--teclas") && i + 1 < argc) guion = argv[++i];
+        else if (!strcmp(argv[i], "--tactil")) gTactil = true;
+        else if (!strcmp(argv[i], "--pcm") && i + 1 < argc) emu_sonido_grabar(argv[++i]);
+        else if (!strcmp(argv[i], "--toques") && i + 1 < argc) {
+            gToques = argv[++i];
+            gTactil = true;
+        }
     }
     w3dLogRuta("build/segaw3d.log");
     w3dLogReset();
@@ -106,6 +164,7 @@ int main(int argc, char** argv) {
         return 1;
     }
     gFrecuencia = SDL_GetPerformanceFrequency();
+    gInicioUs = plat_ahora_us();
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 1);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 5);
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);

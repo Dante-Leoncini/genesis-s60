@@ -27,3 +27,13 @@ bool plat_tecla(int t);
 bool plat_mando(int i, w3dEngine::MandoEstado& e);
 // el juego pide salir (la tecla roja la maneja el sistema)
 void plat_salir();
+
+// LA PANTALLA TACTIL (el N8; en la PC, el mouse con --tactil): si hay, y los dedos apoyados ahora, en pixeles de la
+// pantalla del telefono (hasta 'max'; devuelve cuantos)
+struct Toque;
+bool plat_es_tactil();
+int plat_toques(Toque* toques, int max);
+// la imagen se puede escalar y filtrar (hay GPU: la PC y el N8; el N95 dibuja 1:1 por CPU)
+bool plat_escala();
+// el idioma del sistema es el castellano (el menu sale en castellano; si no, en ingles)
+bool plat_espanol();

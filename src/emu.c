@@ -38,10 +38,14 @@ static int gCargado = 0; /* hay una ROM cargada (para rehacer el sonido al cambi
 static void aplicar_dibujo(void);
 static int gRapido = 0, gRapidoActivo = 0; /* el dibujo rapido: pedido / puesto (ver aplicar_dibujo) */
 
+static FILE* gGrabar = 0; /* (las pruebas en la PC: el sonido de la consola tal cual, PCM estereo de 16 bits) */
+void emu_sonido_grabar(const char* ruta) { gGrabar = ruta ? fopen(ruta, "wb") : 0; }
+
 static void sonido_escribir(int bytes) {
     const int n = bytes / 4;
     const uint32_t e = gEscrito;
     int i;
+    if (gGrabar) fwrite(gSonidoCuadro, 4, n, gGrabar);
     if ((int)(e - gLeido) + n > COLA) return; /* (llena: el audio no esta corriendo) */
     for (i = 0; i < n; i++) {
         const uint32_t k = (e + i) & (COLA - 1);
@@ -55,12 +59,16 @@ int emu_sonido_en_cola(void) { return (int)(gEscrito - gLeido); }
 
 void emu_sonido_volumen(int v) { gVolumen = v < 0 ? 0 : (v > 256 ? 256 : v); }
 
-/* el lector: lo que pide el mezclador, con interpolacion lineal. La consola genera a gHz y la salida de audio va a
- * gHzSalida (fija: cambiar la frecuencia de la consola no toca el dispositivo); el paso base es la razon entre las
- * dos y se corre hasta un 1 % para que la cola se quede en lo que pide de una vez mas ~2 cuadros (el video manda: la
- * consola corre a su reloj y el sonido lo sigue sin cortes). En el N95 el mezclador pide 1024 muestras juntas */
+/* el lector: lo que pide el mezclador. La consola genera a gHz y la salida de audio va a gHzSalida (fija: cambiar la
+ * frecuencia de la consola no toca el dispositivo). El paso es FIJO, la razon entre las dos: con las dos iguales la
+ * cola pasa tal cual, y si no, con interpolacion lineal a un paso constante. (Antes el paso se corria hasta un 1 %
+ * segun lo que hubiera en la cola, y la cola salta de a un pedido entero -1024 muestras en el N95-: el paso cambiaba
+ * todo el tiempo y la interpolacion modulaba los agudos, los anillos de Sonic sonaban asperos.) Lo que se aparta la
+ * cola de lo que pide de una vez mas ~2 cuadros lo corrige la velocidad de la consola (emu_sonido_desvio) */
 static int gPedidoMax = 0;
 static int gHzSalida = 44100;
+static volatile int gDesvio = 0; /* lo que sobra (+) o falta (-) en la cola, promediado, en muestras de la consola */
+int emu_sonido_desvio(void) { return gDesvio; }
 void emu_sonido_mezclar(int* acc, int frames) {
     const int hz = gHz;
     const uint32_t base = (uint32_t)(((uint64_t)hz << 16) / (uint32_t)gHzSalida);
@@ -68,18 +76,12 @@ void emu_sonido_mezclar(int* acc, int frames) {
     int hay = (int)(gEscrito - gLeido);
     if (frames > gPedidoMax) gPedidoMax = frames;
     objetivo = (int)((int64_t)gPedidoMax * hz / gHzSalida) + hz / 30;
-    int32_t paso;
-    uint32_t pos = gLeido, frac = gFraccion;
+    /* (el promedio: ~16 pedidos, medio segundo) */
+    gDesvio += (hay - objetivo - gDesvio) / 16;
+    const int32_t paso = (int32_t)base;
+    uint32_t pos = gLeido, frac = base == 0x10000 ? 0 : gFraccion;
     const int vol = gVolumen;
     int i;
-    {
-        const int desvio = hay - objetivo;
-        int ajuste = (int)((int64_t)desvio * (int32_t)base / (objetivo * 16));
-        const int tope = (int)(base / 100);
-        if (ajuste > tope) ajuste = tope;
-        if (ajuste < -tope) ajuste = -tope;
-        paso = (int32_t)base + ajuste;
-    }
     for (i = 0; i < frames; i++) {
         uint32_t k0, k1;
         int l0, r0, l1, r1;

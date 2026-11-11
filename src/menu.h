@@ -1,11 +1,15 @@
 // ---------------------------------------------------------------------------------------------------------------
-//  El menu de las ROMs: la lista de los juegos de una carpeta, para elegir cual jugar. Se dibuja por CPU en una imagen
-//  RGB565 de 320x240 (la letra de 8x8 de PicoDrive, platform/libpicofe/fonts.c) que va a la pantalla como un cuadro
-//  mas de la consola: igual en la PC y en el N95.
+//  El menu de las ROMs: la lista de los juegos de una carpeta, para elegir cual jugar, y la de las opciones. Se dibuja
+//  por CPU en una imagen RGB565 (la letra de 8x8 de PicoDrive, platform/libpicofe/fonts.c) que va a la pantalla como
+//  un cuadro mas de la consola: igual en la PC, en el N95 y en el N8.
+//
+//  El tamano lo elige la plataforma (menu_configurar): en el N95, 320x240 con filas chicas (se maneja con teclas); en
+//  una pantalla tactil, filas del alto de un dedo, botones arriba y abajo, arrastrar desplaza y tocar elige.
 // ---------------------------------------------------------------------------------------------------------------
 #pragma once
 #include <stdint.h>
 
+// lo mas grande que puede ser la imagen del menu
 enum { MENU_ANCHO = 320, MENU_ALTO = 240 };
 
 // lo que pide el menu con las teclas o los mandos (bits)
@@ -18,6 +22,8 @@ enum MenuAccion { MENU_NADA, MENU_JUGAR, MENU_SEGUIR, MENU_SALIR, MENU_CAMBIO_OP
 
 // LAS OPCIONES (Start en el menu): las guarda el juego; el menu las cambia y avisa con MENU_CAMBIO_OPCIONES
 enum { MULTITAP_AUTO, MULTITAP_SIEMPRE, MULTITAP_NUNCA };
+enum { TACTIL_AUTO, TACTIL_SI, TACTIL_NO };
+enum { IDIOMA_AUTO, IDIOMA_ES, IDIOMA_EN };
 struct MenuOpciones {
     int fps;        // 1 = el contador de cuadros por segundo arriba a la derecha
     int multitap;   // MULTITAP_*: el Team Player (4 jugadores)
@@ -25,15 +31,32 @@ struct MenuOpciones {
     int fmAlta;     // 1 = el FM en alta calidad (mas lento)
     int hz;         // la frecuencia del sonido: 0 = 22050, 1 = 32000, 2 = 44100 (mas alta = mejor y mas lento)
     int rapido;     // 1 = el dibujo rapido (por tiles: mas barato, sin los efectos de mitad de pantalla)
+    int escala;     // ESCALA_* de pantalla.h (donde se puede elegir)
+    int suave;      // 1 = la imagen filtrada (borrosa); 0 = pixel perfect
+    int tactil;     // TACTIL_*: los controles en la pantalla (auto = si no hay mandos conectados)
+    int idioma;     // IDIOMA_*: auto = el del sistema (castellano si es castellano; si no, ingles)
 };
 void menu_opciones(MenuOpciones* o);
+// el idioma del sistema (para IDIOMA_AUTO) y el que se esta usando
+void menu_idioma_sistema(bool espanol);
+bool menu_en_ingles();
+// un texto en el idioma elegido
+inline const char* menu_tr(const char* es, const char* en) { return menu_en_ingles() ? en : es; }
 
-// busca las ROMs de la carpeta (con la barra del final) y deja elegida la de 'ultima' (la ruta entera) si esta. La
-// ultima fila de la lista es "Salir" (cierra el emulador)
+// el tamano de la imagen del menu (hasta MENU_ANCHO x MENU_ALTO), el alto de cada fila y si se maneja con el dedo;
+// 'pantalla' = se puede elegir la escala, el filtro y los controles tactiles (no en el N95)
+void menu_configurar(int ancho, int alto, int fila, bool tactil, bool pantalla);
+void menu_tamano(int* ancho, int* alto);
+
+// busca las ROMs de la carpeta (con la barra del final) y deja elegida la de 'ultima' (la ruta entera) si esta. Con
+// teclas la ultima fila de la lista es "Salir" (cierra el emulador); con el dedo, un boton abajo a la derecha
 void menu_abrir(const char* carpeta, const char* ultima, bool hayJuego);
 int menu_cantidad();
 // los botones apretados ahora (bits MENU_*), una vez por cuadro: mantenidos, arriba/abajo se repiten
 MenuAccion menu_actualizar(int botones, uint64_t ahoraUs);
+// EL DEDO, en pixeles de la imagen del menu: apoyar, mover y soltar (arrastrar desplaza; tocar sin mover elige)
+enum { TOQUE_APOYA, TOQUE_MUEVE, TOQUE_SUELTA };
+MenuAccion menu_toque(int tipo, int x, int y);
 // la ruta de la ROM elegida (despues de MENU_JUGAR)
 const char* menu_elegida();
 // los mandos conectados (bits 0..3), para mostrarlos abajo
@@ -42,5 +65,5 @@ void menu_mandos(int conectados);
 void menu_redibujar();
 // un texto con la letra de 8x8 en una imagen RGB565 de 'ancho' pixeles por fila (y 'alto' filas)
 void menu_texto(uint16_t* img, int ancho, int alto, int x, int y, const char* s, uint16_t color);
-// dibuja el menu si cambio algo: true = hay una imagen nueva en 'imagen' (MENU_ANCHO x MENU_ALTO)
+// dibuja el menu si cambio algo: true = hay una imagen nueva en 'imagen' (del tamano de menu_tamano)
 bool menu_dibujar(uint16_t* imagen);

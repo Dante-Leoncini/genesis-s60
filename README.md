@@ -1,9 +1,21 @@
 # genesis-s60
 
-Emulador de **Sega Mega Drive / Genesis** (y Master System / Game Gear) para **Symbian S60 3rd Edition**, hecho para
-el **Nokia N95**. Usa el núcleo de [PicoDrive](https://github.com/irixxxx/picodrive) con sus partes en asm ARM, y
+Emulador de **Sega Mega Drive / Genesis** (y Master System / Game Gear) para **Symbian**: una versión para
+**S60 3rd Edition** (hecha para el **Nokia N95**) y otra para **Symbian^3 / Anna / Belle** (Nokia N8, C7, E7, 808...)
+con OpenGL ES 2.0, pantalla táctil y salida de TV. Usa el núcleo de [PicoDrive](https://github.com/irixxxx/picodrive) con sus partes en asm ARM, y
 suma una interfaz propia pensada para el teléfono: menú de ROMs, hasta **4 mandos de PS3/PS4 por Bluetooth** y el
 **Team Player** de Sega para los juegos de 4 jugadores (Mega Bomberman, ...).
+
+## Descargar
+
+Los instaladores están en [`sis/`](sis/), con la versión en el nombre:
+
+- **N95** y otros S60 3rd / 5th: [`sis/segaw3d_n95_1.1.sisx`](sis/segaw3d_n95_1.1.sisx)
+- **N8** y otros Symbian^3 / Anna / Belle: [`sis/segaw3d_n8_1.1.sisx`](sis/segaw3d_n8_1.1.sisx)
+
+Las dos usan el mismo nombre en el teléfono: una reemplaza a la otra. Están firmados con un certificado propio: el
+teléfono tiene que aceptar aplicaciones sin firmar de Nokia (Administrador de aplicaciones > Configuración >
+Instalación de software: Todas). Para los mandos hace falta [bthid-s60](https://github.com/Dante-Leoncini/bthid-s60).
 
 ## Qué tiene
 
@@ -16,7 +28,17 @@ suma una interfaz propia pensada para el teléfono: menú de ROMs, hasta **4 man
 - **Hasta 4 mandos** de PS3/PS4 con el driver [bthid-s60](https://github.com/Dante-Leoncini/bthid-s60). El Team Player
   se enchufa solo en los juegos que lo traen (lo dice la cabecera del cartucho).
 - **Menú de ROMs** y **opciones**: contador de FPS, dibujo preciso o rápido, multitap, frecuencia y calidad del
-  sonido.
+  sonido, idioma (castellano o inglés; por defecto, el del teléfono).
+
+### En el N8 (Symbian^3 / Anna / Belle)
+
+- **OpenGL ES 2.0** a 60 fps, con la escala a elección: **1:1**, **entera** (x2 para la TV de 480i), **ajustar**
+  (ocupa la pantalla sin deformar) o **estirar**; y la imagen **pixelada** (pixel perfect) o **suave** (filtrada).
+- **Controles táctiles** de Mega Drive en la pantalla (cruceta, A B C, Start, menú), con varios dedos a la vez. Se
+  muestran solos si no hay mandos conectados.
+- **Menú táctil**: filas grandes, arrastrar para desplazar, tocar para elegir.
+- **Salida de TV** (RCA 480i o HDMI 720p): al enchufar el cable pregunta si clonar la pantalla, mostrar el juego solo
+  en la tele o en la tele con los controles táctiles en el teléfono.
 
 En el N95, Mega Bomberman en batalla de 4 anda a 60 fps. Sonic & Knuckles anda cerca de 50 con el dibujo preciso.
 
@@ -32,7 +54,8 @@ En el N95, Mega Bomberman en batalla de 4 anda a 60 fps. Sonic & Knuckles anda c
 | Pausa y menú de ROMs | Select o PS | tecla derecha de abajo (o C) |
 
 En el menú: arriba y abajo para elegir, OK / cruz para jugar, **Start** para las opciones. La tecla derecha de abajo
-vuelve a la partida y la última fila, "[ Salir ]", cierra el emulador. Las teclas de volumen del costado cambian el
+vuelve a la partida y la última fila, "[ Salir ]", cierra el emulador (en el N8: los botones de abajo, "Volver al
+juego" y "Salir"). Las teclas de volumen del costado cambian el
 volumen.
 
 ## Las ROMs
@@ -61,7 +84,7 @@ build/segaw3d_pc --datos carpeta/con/roms/
 
 Teclado: flechas, Z X C = A B C, Enter = Start, A S D = X Y Z, Borrar = menú, Re Pág / Av Pág = volumen.
 
-### Para el N95
+### Para el N95 y el N8
 
 Hace falta el SDK de S60 en `C:\epoc32`, el RVCT 2.2, el gcc de Symbian de CodeSourcery (para los .S de PicoDrive,
 que están en la sintaxis de GNU as), el g++ de MSYS2 (para generar Cyclone) y Python.
@@ -69,9 +92,13 @@ que están en la sintaxis de GNU as), el g++ de MSYS2 (para generar Cyclone) y P
 ```
 python herramientas/asm_symbian.py     los núcleos en asm: genera Cyclone.s, ensambla y deja pdasm.lib en \epoc32
 python herramientas/pd_symbian.py      los envoltorios del núcleo en C para abld (symbian/pd/)
-symbian\compilar.bat                   segaw3d.exe (RVCT 2.2, ARMv6 + VFP)
-python symbian/sis/armar_pkg.py        el instalador: build/segaw3d.sisx (la firma se crea la primera vez)
+symbian\compilar.bat                   segaw3d.exe (N95) y segaw3d_belle.exe (N8): RVCT 2.2, ARMv6 + VFP
+python symbian/sis/armar_pkg.py        el instalador del N95: build/segaw3d.sisx (la firma se crea la primera vez)
+python symbian/sis/armar_pkg.py --belle      el del N8: build/segaw3d_belle.sisx
+python symbian/sis/armar_pkg.py --publicar   los dos, con la versión, en sis/
 ```
+
+La versión está en `symbian/sis/armar_pkg.py` (`VERSION`).
 
 Después de cambiar las macros del `.mmp` o de actualizar PicoDrive: `symbian\compilar.bat limpio`.
 
@@ -80,10 +107,11 @@ Después de cambiar las macros del `.mmp` o de actualizar PicoDrive: `symbian\co
 ## Estructura
 
 - `src/`: el emulador. `emu.c` (el núcleo visto desde el juego: imagen, sonido, mandos), `juego.cpp` (el reloj de
-  la consola, los jugadores, el menú, el perfil), `menu.cpp`, `pantalla.cpp` (la PC, con OpenGL).
+  la consola, los jugadores, el menú, el perfil), `menu.cpp`, `tactil.cpp` (los controles en la pantalla), `pantalla.cpp` (la PC, con OpenGL).
 - `src/pc/`: la prueba en la PC con SDL2.
-- `symbian/`: la aplicación de S60 (`src/`: la ventana, el Direct Screen Access, las teclas), el `.mmp`, el
-  instalador y las pruebas por cable.
+- `symbian/`: la aplicación de S60 (`src/`: la ventana, el Direct Screen Access, las teclas; en el N8, OpenGL ES 2.0,
+  el táctil y la TV), los `.mmp` (`segaw3d_belle.mmp` es el del N8), el instalador y las pruebas por cable.
+- `sis/`: los instaladores para bajar.
 - `herramientas/`: lo que arma el núcleo para Symbian sin tocar `picodrive/`: el asm (`asm_symbian.py`), las
   posiciones de las estructuras para el asm (`offsets_symbian.py`, con el RVCT), los envoltorios (`pd_symbian.py`) y
   la tabla de cartuchos (`carthw_cfg.py`).

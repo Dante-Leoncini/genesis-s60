@@ -1,11 +1,16 @@
 // ---------------------------------------------------------------------------------------------------------------
 //  segaw3d.mmp: el emulador de Mega Drive (PicoDrive) para el Nokia N95, con hasta 4 mandos de PS3/PS4 por el Team
-//  Player. Las rutas suponen el arbol del ecosistema:
+//  Player. segaw3d_belle.mmp define SEGA_MMP_BELLE e incluye este: la variante de Symbian^3 / Anna / Belle (N8), con
+//  OpenGL ES 2.0, la pantalla tactil y la TV; comparte todo lo demas. Las rutas suponen el arbol del ecosistema:
 //      Whisk3decosystem\Whisk3D                         el motor (libs\Whisk3DCore y platform\symbian)
 //      Whisk3decosystem\emuladores-pros\sega            este emulador (src\, picodrive\, symbian\)
 //  El nucleo (picodrive\) entra por los envoltorios de ..\pd (herramientas\pd_symbian.py los genera).
 // ---------------------------------------------------------------------------------------------------------------
+#ifdef SEGA_MMP_BELLE
+TARGET          segaw3d_belle.exe
+#else
 TARGET          segaw3d.exe
+#endif
 TARGETTYPE      exe
 // UID3 del rango de pruebas (sin proteger): el mismo de inc\segaw3d.h, los .rss y el .pkg
 UID             0x100039CE 0xE5E6A001
@@ -22,12 +27,18 @@ CAPABILITY      ReadUserData WriteUserData
 MACRO           W3D_SYMBIAN
 MACRO           W3D_ENABLE_AUDIO
 MACRO           W3D_SIN_EDITOR
+#ifdef SEGA_MMP_BELLE
+MACRO           SEGA_BELLE
+#endif
 // el nucleo de PicoDrive con lo que hay en asm ARM (pdasm.lib, de herramientas\asm_symbian.py: GNU as, ensamblado con
 // el gcc de CodeSourcery): el 68000 (Cyclone), el Z80 (DrZ80), el sonido FM, las copias de memoria, el dibujo de los
 // planos y los sprites y la memoria del 68000
 MACRO           EMU_C68K
 MACRO           _USE_DRZ80
+// (el FM en asm solo en el N95: el N8 tiene CPU de sobra para el de C, el de referencia)
+#ifndef SEGA_MMP_BELLE
 MACRO           _ASM_YM2612_C
+#endif
 MACRO           _ASM_MISC_C
 MACRO           _ASM_DRAW_C
 MACRO           _ASM_MEMORY_C
@@ -42,14 +53,19 @@ OPTION_REPLACE  ARMCC --fpu vfpv2 --fpmode fast
 OPTION_REPLACE  ARMCC -O3 -Otime
 OPTION          ARMCC --gnu --diag_suppress 1215,177,550,186,111,68,61,940,1293,1295,174,767,1294,167,513,188,191,1296,47
 
-// --- la aplicacion de S60 (el framework, el bucle, las teclas), la plataforma y la pantalla (Direct Screen Access:
-// por CPU, directo en la pantalla)
+// --- la aplicacion de S60 (el framework, el bucle, las teclas), la plataforma y la pantalla: en el N95 el Direct
+// Screen Access (por CPU, directo en la pantalla); en el N8, OpenGL ES 2.0 (con los dedos y la TV)
 SOURCEPATH      ..\src
-SOURCE          sega_app.cpp sega_contenedor.cpp plataforma_symbian.cpp pantalla_symbian.cpp
+SOURCE          sega_app.cpp plataforma_symbian.cpp
+#ifdef SEGA_MMP_BELLE
+SOURCE          sega_contenedor_gles2.cpp pantalla_gles2.cpp
+#else
+SOURCE          sega_contenedor.cpp pantalla_symbian.cpp
+#endif
 
 // --- el emulador (src\pc\ y src\pantalla.cpp, con OpenGL, son solo la prueba en la PC)
 SOURCEPATH      ..\..\src
-SOURCE          juego.cpp menu.cpp emu.c
+SOURCE          juego.cpp menu.cpp tactil.cpp emu.c
 
 // --- el nucleo de PicoDrive
 #include "pd_fuentes.mmh"
@@ -69,7 +85,9 @@ SOURCE          W3dAudio.cpp W3dAudioSymbian.cpp
 SOURCEPATH      ..\..\..\..\Whisk3D\platform\symbian\src
 SOURCE          newdel_compat.cpp
 
-// (las rutas de los recursos se resuelven contra el ultimo SOURCEPATH)
+// (las rutas de los recursos se resuelven contra el ultimo SOURCEPATH). Los compila solo la variante del N95: son los
+// mismos para las dos
+#ifndef SEGA_MMP_BELLE
 SOURCEPATH      ..\data
 START RESOURCE  segaw3d.rss
 HEADER
@@ -83,6 +101,7 @@ TARGETPATH      \private\10003a3f\apps
 TARGETPATH      \private\10003a3f\import\apps
 #endif
 END
+#endif
 
 USERINCLUDE     ..\inc
 USERINCLUDE     ..\..\src
@@ -110,7 +129,13 @@ SYSTEMINCLUDE   \epoc32\include\platform\mw
 
 LIBRARY         euser.lib apparc.lib cone.lib eikcore.lib avkon.lib ws32.lib efsrv.lib
 LIBRARY         hal.lib                       // el reloj rapido
+#ifdef SEGA_MMP_BELLE
+LIBRARY         libglesv2.lib libegl.lib      // OpenGL ES 2.0 + EGL
+LIBRARY         accmonitor.lib                // el cable de la TV (HDMI / video compuesto)
+LIBRARY         aknnotify.lib bafl.lib        // la pregunta de la TV (CAknGlobalListQuery)
+#else
 LIBRARY         bitgdi.lib fbscli.lib         // la pantalla: el contexto del DSA y el bitmap de la imagen
+#endif
 LIBRARY         mediaclientaudiostream.lib    // CMdaAudioOutputStream: la salida del mezclador
 LIBRARY         remconcoreapi.lib remconinterfacebase.lib   // las teclas de volumen (RemCon)
 LIBRARY         libc.lib libm.lib libstdcpp.lib
