@@ -25,6 +25,9 @@ bool plat_tecla(int t);
 // LOS JOYSTICKS, hasta 4 (en el N95, los de PS3 y PS4 por Bluetooth con el driver bthid-s60; en la PC, los de SDL):
 // el estado del mando i en el orden del Core (base/W3dMandos.h). false = no hay mando con ese numero
 bool plat_mando(int i, w3dEngine::MandoEstado& e);
+// el acelerometro del mando i si es un Wiimote (en g: X a lo ancho, Y a lo largo hacia la punta, Z de la cara de los
+// botones). false = no es un Wiimote
+bool plat_mando_acelerometro(int i, float g[3]);
 // el juego pide salir (la tecla roja la maneja el sistema)
 void plat_salir();
 

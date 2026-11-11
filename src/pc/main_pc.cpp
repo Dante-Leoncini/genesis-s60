@@ -123,6 +123,8 @@ int plat_toques(Toque* t, int max) {
     return n;
 }
 
+bool plat_mando_acelerometro(int, float*) { return false; }   // (en la PC no hay Wiimote)
+
 bool plat_mando(int i, w3dEngine::MandoEstado& e) {
     using namespace w3dEngine;
     if (i < 0 || i >= MandosMax) return false;

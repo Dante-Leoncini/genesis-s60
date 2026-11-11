@@ -71,7 +71,7 @@ int gPresentados = 0, gEmulados = 0, gSaltados = 0;
 char gRom[512] = "";
 char gCarpeta[512] = "";
 int gEntrada = -1;   // -1 = segun la opcion de multitap
-MenuOpciones gOpc = { 0, MULTITAP_AUTO, 0, 0, 0, 0, ESCALA_AJUSTAR, 0, TACTIL_AUTO, IDIOMA_AUTO };
+MenuOpciones gOpc = { 0, MULTITAP_AUTO, 0, 0, 0, 0, ESCALA_AJUSTAR, 0, TACTIL_AUTO, IDIOMA_AUTO, 0 };
 // la pantalla tactil: los controles en pantalla se pueden usar, y el dedo que maneja el menu
 bool gTactilListo = false;
 int gDedoMenu = -1, gMenuDedoX = 0, gMenuDedoY = 0;
@@ -152,11 +152,11 @@ void opciones(bool escribir) {
     FILE* f = fopen(ruta, escribir ? "w" : "r");
     if (!f) return;
     if (escribir) {
-        fprintf(f, "fps=%d\nmultitap=%s\nfiltro=%d\nfm_alta=%d\nhz=%d\nrapido=%d\nescala=%d\nsuave=%d\ntactil=%d\nidioma=%s\n",
+        fprintf(f, "fps=%d\nmultitap=%s\nfiltro=%d\nfm_alta=%d\nhz=%d\nrapido=%d\nescala=%d\nsuave=%d\ntactil=%d\nidioma=%s\ninclinacion=%d\n",
                 gOpc.fps,
                 gOpc.multitap == MULTITAP_SIEMPRE ? "siempre" : gOpc.multitap == MULTITAP_NUNCA ? "nunca" : "auto",
                 gOpc.filtro, gOpc.fmAlta, HZ_SONIDO[gOpc.hz], gOpc.rapido, gOpc.escala, gOpc.suave, gOpc.tactil,
-                gOpc.idioma == IDIOMA_ES ? "es" : gOpc.idioma == IDIOMA_EN ? "en" : "auto");
+                gOpc.idioma == IDIOMA_ES ? "es" : gOpc.idioma == IDIOMA_EN ? "en" : "auto", gOpc.inclinacion);
     } else {
         char linea[128];
         bool conHz = false;
@@ -175,6 +175,7 @@ void opciones(bool escribir) {
             else if (!strcmp(linea, "idioma=es")) gOpc.idioma = IDIOMA_ES;
             else if (!strcmp(linea, "idioma=en")) gOpc.idioma = IDIOMA_EN;
             else if (!strcmp(linea, "idioma=auto")) gOpc.idioma = IDIOMA_AUTO;
+            else if (!strncmp(linea, "inclinacion=", 12)) gOpc.inclinacion = atoi(linea + 12) != 0;
             else if (!strncmp(linea, "hz=", 3)) {
                 const int hz = atoi(linea + 3);
                 gOpc.hz = hz >= 44100 ? 2 : hz >= 32000 ? 1 : 0;
@@ -289,6 +290,36 @@ uint16_t pad_de_teclas() {
 // emulador abierto). Los conectados se leen siempre; de los que faltan, uno cada 15 cuadros (aparece en menos de 1 s)
 int gRevisar = 0, gCuadrosPads = 0;
 
+// EL WIIMOTE COMO VOLANTE (la opcion de inclinarlo): acostado, como un volante. Derecho no aprieta nada; inclinado
+// aprieta izquierda o derecha una parte de los cuadros (mas inclinado, mas seguido) y bien inclinado, siempre: como
+// un volante en un juego que solo tiene cruceta. La inclinacion es Y del acelerometro (a lo largo del control): con
+// la cruceta a la izquierda, girar a la derecha da Y negativo (probado en el N8)
+const float VOLANTE_MUERTO = 0.12f;   // (~7 grados: derecho)
+const float VOLANTE_TOPE = 0.55f;     // (~33 grados: todo el tiempo)
+float gVolante[4] = { 0, 0, 0, 0 };   // lo acumulado de cada mando (sigma-delta: aprieta al pasar de 1)
+int gVolanteLog = 0;
+
+uint16_t volante(int i) {
+    float g[3];
+    if (!plat_mando_acelerometro(i, g)) return 0;
+    const float y = g[1];
+    const float a = y < 0 ? -y : y;
+    if (++gVolanteLog >= 120) {
+        gVolanteLog = 0;
+        w3dLogf("juego: wiimote %d inclinado %.2f (x %.2f z %.2f)", i + 1, y, g[0], g[2]);
+    }
+    if (a < VOLANTE_MUERTO) {
+        gVolante[i] = 0;
+        return 0;
+    }
+    float d = (a - VOLANTE_MUERTO) / (VOLANTE_TOPE - VOLANTE_MUERTO);
+    if (d > 1.0f) d = 1.0f;
+    gVolante[i] += d;
+    if (gVolante[i] < 1.0f) return 0;
+    gVolante[i] -= 1.0f;
+    return y > 0 ? MD_IZQ : MD_DER;
+}
+
 void leer_pads(uint16_t pads[4]) {
     int conectados = 0;
     gGuia = false;
@@ -309,6 +340,7 @@ void leer_pads(uint16_t pads[4]) {
         MandoEstado e;
         if (plat_mando(i, e)) {
             pads[i] = pad_de_mando(e);
+            if (gOpc.inclinacion && !gEnMenu && e.tipo == MandoWii) pads[i] |= volante(i);
             conectados |= 1 << i;
             if (e.botones[MandoGuia] || e.botones[MandoSelect]) gGuia = true;
         }

@@ -41,7 +41,8 @@ Lista gRomsL = { 0, 0 }, gOpcL = { 0, 0 };
 // las opciones (la pantalla que abre Start)
 MenuOpciones* gOpciones = 0;
 bool gEnOpciones = false;
-enum { OPC_FPS, OPC_ESCALA, OPC_SUAVE, OPC_TACTIL, OPC_DIBUJO, OPC_MULTITAP, OPC_HZ, OPC_FM, OPC_FILTRO, OPC_IDIOMA,
+enum { OPC_FPS, OPC_ESCALA, OPC_SUAVE, OPC_TACTIL, OPC_DIBUJO, OPC_MULTITAP, OPC_INCLINACION, OPC_HZ, OPC_FM,
+       OPC_FILTRO, OPC_IDIOMA,
        OPC_VOLVER, OPC_CERRAR };
 int gOpcs[16];   // las que se muestran (OPC_*), en orden
 int gOpcsN = 0;
@@ -163,6 +164,7 @@ void armar_opciones() {
     if (gTactil) gOpcs[gOpcsN++] = OPC_TACTIL;
     gOpcs[gOpcsN++] = OPC_DIBUJO;
     gOpcs[gOpcsN++] = OPC_MULTITAP;
+    gOpcs[gOpcsN++] = OPC_INCLINACION;
     gOpcs[gOpcsN++] = OPC_HZ;
     gOpcs[gOpcsN++] = OPC_FM;
     gOpcs[gOpcsN++] = OPC_FILTRO;
@@ -188,6 +190,7 @@ MenuAccion cambiar_opcion(int o, int paso) {
     case OPC_TACTIL: p.tactil = (p.tactil + 3 + paso) % 3; break;
     case OPC_DIBUJO: p.rapido = !p.rapido; break;
     case OPC_MULTITAP: p.multitap = (p.multitap + 3 + paso) % 3; break;
+    case OPC_INCLINACION: p.inclinacion = !p.inclinacion; break;
     case OPC_HZ: p.hz = (p.hz + 3 + paso) % 3; break;
     case OPC_FM: p.fmAlta = !p.fmAlta; break;
     case OPC_FILTRO: p.filtro = !p.filtro; break;
@@ -214,6 +217,7 @@ void opcion_texto(int o, char* nombre, char* valor, int n) {
         v = p && p->rapido ? tr("RAPIDO", "FAST") : tr("PRECISO", "ACCURATE");
         break;
     case OPC_MULTITAP: k = tr("Multitap (4 jug.)", "Multitap (4 pl.)"); v = multitap_nombre(p ? p->multitap : 0); break;
+    case OPC_INCLINACION: k = tr("Inclinar el Wiimote", "Wiimote tilt"); v = si_no(p && p->inclinacion); break;
     case OPC_HZ: k = tr("Sonido", "Sound"); v = kHz[p ? p->hz : 0]; break;
     case OPC_FM: k = tr("FM alta calidad", "High quality FM"); v = si_no(p && p->fmAlta); break;
     case OPC_FILTRO: k = tr("Filtro de sonido", "Sound filter"); v = si_no(p && p->filtro); break;

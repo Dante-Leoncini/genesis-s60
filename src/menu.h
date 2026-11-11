@@ -35,6 +35,7 @@ struct MenuOpciones {
     int suave;      // 1 = la imagen filtrada (borrosa); 0 = pixel perfect
     int tactil;     // TACTIL_*: los controles en la pantalla (auto = si no hay mandos conectados)
     int idioma;     // IDIOMA_*: auto = el del sistema (castellano si es castellano; si no, ingles)
+    int inclinacion; // 1 = el Wiimote como volante: inclinarlo aprieta izquierda / derecha (mas inclinado, mas tiempo)
 };
 void menu_opciones(MenuOpciones* o);
 // el idioma del sistema (para IDIOMA_AUTO) y el que se esta usando
