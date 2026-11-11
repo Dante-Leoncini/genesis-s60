@@ -1,0 +1,3 @@
+[submodule "picodrive"]
+	path = picodrive
+	url = https://github.com/irixxxx/picodrive.git

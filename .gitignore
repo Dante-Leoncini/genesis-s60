@@ -1,0 +1,11 @@
+# lo que se arma al compilar y probar
+build/
+__pycache__/
+symbian/group/ABLD.BAT
+
+# las ROMs y la configuracion de la PC (las ROMs no se suben)
+datos/
+
+# la firma del .sisx (cada uno arma la suya: symbian/sis/armar_pkg.py la crea la primera vez)
+symbian/sis/*.key
+symbian/sis/*.cer

@@ -1,0 +1,9 @@
+// segaw3d para el Nokia N95 (S60 3rd FP1): el emulador de ../../src con PicoDrive (../../picodrive) y el Core de
+// Whisk3D (../../../../Whisk3D).
+
+PRJ_PLATFORMS
+DEFAULT ARMV5
+
+PRJ_MMPFILES
+gnumakefile icono.mk
+segaw3d.mmp

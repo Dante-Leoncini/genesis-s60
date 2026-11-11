@@ -1,0 +1,15 @@
+// El registro de la aplicacion (para que aparezca en el menu del telefono)
+
+#include <appinfo.rh>
+#include <segaw3d.rsg>
+
+UID2 KUidAppRegistrationResourceFile
+UID3 0xE5E6A001
+
+RESOURCE APP_REGISTRATION_INFO {
+    app_file = "segaw3d";
+    localisable_resource_file = "\\resource\\apps\\segaw3d";
+    localisable_resource_id = R_SEGAW3D_LOCALISABLE_APP_INFO;
+    embeddability = KAppNotEmbeddable;
+    newfile = KAppDoesNotSupportNewFile;
+}

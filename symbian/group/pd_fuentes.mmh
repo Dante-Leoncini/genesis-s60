@@ -1,0 +1,18 @@
+// generado por herramientas/pd_symbian.py: el nucleo de PicoDrive (un envoltorio por archivo)
+SOURCEPATH      ..\pd
+SOURCE          pd_pico_pico.c pd_pico_cart.c pd_pico_memory.c pd_pico_state.c
+SOURCE          pd_pico_sek.c pd_pico_z80if.c pd_pico_videoport.c pd_pico_draw2.c
+SOURCE          pd_pico_draw.c pd_pico_mode4.c pd_pico_misc.c pd_pico_eeprom.c
+SOURCE          pd_pico_patch.c pd_pico_debug.c pd_pico_media.c pd_pico_sms.c
+SOURCE          pd_pico_32x_32x.c pd_pico_32x_memory.c pd_pico_32x_draw.c pd_pico_32x_sh2soc.c
+SOURCE          pd_pico_32x_pwm.c pd_cpu_sh2_sh2.c pd_cpu_sh2_mame_sh2pico.c pd_pico_cd_mcd.c
+SOURCE          pd_pico_cd_memory.c pd_pico_cd_sek.c pd_pico_cd_cdc.c pd_pico_cd_cdd.c
+SOURCE          pd_pico_cd_cd_image.c pd_pico_cd_cd_parse.c pd_pico_cd_gfx.c pd_pico_cd_gfx_dma.c
+SOURCE          pd_pico_cd_misc.c pd_pico_cd_pcm.c pd_pico_cd_megasd.c pd_pico_pico_pico.c
+SOURCE          pd_pico_pico_memory.c pd_pico_pico_xpcm.c pd_pico_carthw_carthw.c pd_pico_carthw_eeprom_spi.c
+SOURCE          pd_pico_carthw_svp_svp.c pd_pico_carthw_svp_memory.c pd_pico_carthw_svp_ssp16.c pd_pico_sound_sound.c
+SOURCE          pd_pico_sound_resampler.c pd_pico_sound_sn76496.c pd_pico_sound_ym2612.c pd_pico_sound_ym2413.c
+SOURCE          pd_pico_sound_vgm.c pd_cpu_drc_cmn.c pd_zlib_gzio.c pd_zlib_inffast.c
+SOURCE          pd_zlib_inflate.c pd_zlib_inftrees.c pd_zlib_trees.c pd_zlib_deflate.c
+SOURCE          pd_zlib_crc32.c pd_zlib_adler32.c pd_zlib_zutil.c pd_zlib_compress.c
+SOURCE          pd_zlib_uncompr.c pd_unzip_unzip.c pd_platform_libpicofe_fonts.c

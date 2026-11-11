@@ -1,0 +1,25 @@
+// Los recursos de la aplicacion: lo minimo de S60. Todo se dibuja con OpenGL ES; las teclas de abajo de la pantalla
+// quedan vacias para que lleguen al juego como teclas (164 y 165)
+
+NAME    SEGA
+
+#include <eikon.rh>
+#include <avkon.rh>
+#include <avkon.rsg>
+#include <appinfo.rh>
+
+RESOURCE RSS_SIGNATURE { }
+RESOURCE TBUF { buf = "Sega"; }
+
+RESOURCE EIK_APP_INFO {
+    cba = R_AVKON_SOFTKEYS_EMPTY;
+}
+
+RESOURCE LOCALISABLE_APP_INFO r_segaw3d_localisable_app_info {
+    short_caption = "Mega Drive";
+    caption_and_icon = CAPTION_AND_ICON_INFO {
+        caption = "Mega Drive W3D";
+        number_of_icons = 1;
+        icon_file = "\\resource\\apps\\segaw3d_icono.mif";
+    };
+}
