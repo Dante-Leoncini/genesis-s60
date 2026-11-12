@@ -8,7 +8,7 @@ telefono estan (carpeta=...) y el emulador arranca con el menu de esa carpeta.
     python symbian/sis/armar_pkg.py --carpeta e:/data/sega/
     python symbian/sis/armar_pkg.py --belle             el del N8 (Symbian^3 / Anna / Belle)
     python symbian/sis/armar_pkg.py --publicar          los dos, copiados a sis/ con la version en el nombre
-                                                        (sis/segaw3d_n95_1.8.sisx, sis/segaw3d_n8_1.8.sisx)
+                                                        (sis/segaw3d_n95_1.9.sisx, sis/segaw3d_n8_1.9.sisx)
 
 Desde probar.py: en C:, con una prueba.txt (el guion de botones y la salida) y rom= (directo a Mega Bomberman, sin el
 menu). El .sisx queda en build/. Antes hay que compilar (symbian/compilar.bat).

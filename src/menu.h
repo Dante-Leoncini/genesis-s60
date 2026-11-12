@@ -17,12 +17,17 @@ enum {
     MENU_ARRIBA = 1 << 0, MENU_ABAJO = 1 << 1, MENU_IZQ = 1 << 2, MENU_DER = 1 << 3,
     MENU_ELEGIR = 1 << 4, MENU_VOLVER = 1 << 5, MENU_OPCIONES = 1 << 6
 };
-// lo que el menu le contesta al juego (MENU_JUGAR y MENU_GUARDAR: la ranura en menu_ranura)
-enum MenuAccion { MENU_NADA, MENU_JUGAR, MENU_SEGUIR, MENU_SALIR, MENU_CAMBIO_OPCIONES, MENU_GUARDAR };
+// lo que el menu le contesta al juego (MENU_JUGAR y MENU_GUARDAR: la ranura en menu_ranura; MENU_CAMBIO_CONTROLES:
+// se cambio un control, guardarlos)
+enum MenuAccion { MENU_NADA, MENU_JUGAR, MENU_SEGUIR, MENU_SALIR, MENU_CAMBIO_OPCIONES, MENU_GUARDAR,
+                  MENU_CAMBIO_CONTROLES };
 
-// LAS PARTIDAS GUARDADAS, de a ranuras, con la fecha y una captura de la pantalla. Con un juego cargado, la primera
-// fila de la lista es "Guardar partida" (elegir la ranura); al elegir una ROM que tiene partidas, se elige entre una
-// partida nueva o una de las guardadas. Los archivos los maneja el juego: el menu le pide la lista y las capturas
+// CON UN JUEGO CARGADO el menu abre en la PAUSA: guardar la partida, cargar una guardada, cargar otra ROM, los
+// controles, las opciones, volver al juego y cerrar. Sin juego, la lista de las ROMs (Start: las opciones)
+//
+// LAS PARTIDAS GUARDADAS, de a ranuras, con la fecha y una captura de la pantalla. Al elegir una ROM que tiene
+// partidas, se elige entre una partida nueva o una de las guardadas. Los archivos los maneja el juego: el menu le pide
+// la lista y las capturas
 enum { MENU_RANURAS = 8, MENU_MINI_ANCHO = 160, MENU_MINI_ALTO = 120 };
 struct MenuPartida {
     bool usada;
@@ -56,6 +61,7 @@ struct MenuOpciones {
     int tactil;     // TACTIL_*: los controles en la pantalla (auto = si no hay mandos conectados)
     int idioma;     // IDIOMA_*: auto = el del sistema (castellano si es castellano; si no, ingles)
     int inclinacion; // 1 = el Wiimote como volante: inclinarlo aprieta izquierda / derecha (mas inclinado, mas tiempo)
+    int volumen;    // 0..10 (tambien las teclas de volumen del costado)
 };
 void menu_opciones(MenuOpciones* o);
 // el idioma del sistema (para IDIOMA_AUTO) y el que se esta usando
@@ -78,7 +84,7 @@ MenuAccion menu_actualizar(int botones, uint64_t ahoraUs);
 // EL DEDO, en pixeles de la imagen del menu: apoyar, mover y soltar (arrastrar desplaza; tocar sin mover elige)
 enum { TOQUE_APOYA, TOQUE_MUEVE, TOQUE_SUELTA };
 MenuAccion menu_toque(int tipo, int x, int y);
-// la ruta de la ROM elegida (despues de MENU_JUGAR)
+// la ruta de la ROM a jugar (despues de MENU_JUGAR)
 const char* menu_elegida();
 // los mandos conectados (bits 0..3), para mostrarlos abajo
 void menu_mandos(int conectados);

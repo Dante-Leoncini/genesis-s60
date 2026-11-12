@@ -17,6 +17,7 @@
 //     teclas=600:start,610:nada,...     botones apretados solos desde cada cuadro de la consola (ver juego_guion)
 //     salir=90                          salir a los 90 segundos
 #include "juego.h"
+#include "controles.h"
 #include "emu.h"
 #include "menu.h"
 #include "pantalla.h"
@@ -40,8 +41,7 @@ uint32_t gImagenSubida = 0xffffffff;
 bool gRedibujar = false;   // juego_redibujar: el proximo cuadro se presenta aunque no toque
 uint16_t gMenuImagen[MENU_ANCHO * MENU_ALTO];
 
-// el volumen, de 0 a 10, y la barrita que lo muestra un rato al cambiarlo
-int gVolumen = 10;
+// la barrita del volumen (gOpc.volumen, de 0 a 10) se muestra un rato al cambiarlo
 uint64_t gVolumenHasta = 0;
 
 // los jugadores conectados y el aviso (los cuadraditos de colores arriba, unos segundos)
@@ -71,7 +71,7 @@ int gPresentados = 0, gEmulados = 0, gSaltados = 0;
 char gRom[512] = "";
 char gCarpeta[512] = "";
 int gEntrada = -1;   // -1 = segun la opcion de multitap
-MenuOpciones gOpc = { 0, MULTITAP_AUTO, 0, 0, 0, 0, ESCALA_AJUSTAR, 0, TACTIL_AUTO, IDIOMA_AUTO, 0 };
+MenuOpciones gOpc = { 0, MULTITAP_AUTO, 0, 0, 0, 0, ESCALA_AJUSTAR, 0, TACTIL_AUTO, IDIOMA_AUTO, 0, 10 };
 // la pantalla tactil: los controles en pantalla se pueden usar, y el dedo que maneja el menu
 bool gTactilListo = false;
 int gDedoMenu = -1, gMenuDedoX = 0, gMenuDedoY = 0;
@@ -152,11 +152,12 @@ void opciones(bool escribir) {
     FILE* f = fopen(ruta, escribir ? "w" : "r");
     if (!f) return;
     if (escribir) {
-        fprintf(f, "fps=%d\nmultitap=%s\nfiltro=%d\nfm_alta=%d\nhz=%d\nrapido=%d\nescala=%d\nsuave=%d\ntactil=%d\nidioma=%s\ninclinacion=%d\n",
+        fprintf(f, "fps=%d\nmultitap=%s\nfiltro=%d\nfm_alta=%d\nhz=%d\nrapido=%d\nescala=%d\nsuave=%d\ntactil=%d\nidioma=%s\ninclinacion=%d\nvolumen=%d\n",
                 gOpc.fps,
                 gOpc.multitap == MULTITAP_SIEMPRE ? "siempre" : gOpc.multitap == MULTITAP_NUNCA ? "nunca" : "auto",
                 gOpc.filtro, gOpc.fmAlta, HZ_SONIDO[gOpc.hz], gOpc.rapido, gOpc.escala, gOpc.suave, gOpc.tactil,
-                gOpc.idioma == IDIOMA_ES ? "es" : gOpc.idioma == IDIOMA_EN ? "en" : "auto", gOpc.inclinacion);
+                gOpc.idioma == IDIOMA_ES ? "es" : gOpc.idioma == IDIOMA_EN ? "en" : "auto", gOpc.inclinacion,
+                gOpc.volumen);
     } else {
         char linea[128];
         bool conHz = false;
@@ -176,6 +177,11 @@ void opciones(bool escribir) {
             else if (!strcmp(linea, "idioma=en")) gOpc.idioma = IDIOMA_EN;
             else if (!strcmp(linea, "idioma=auto")) gOpc.idioma = IDIOMA_AUTO;
             else if (!strncmp(linea, "inclinacion=", 12)) gOpc.inclinacion = atoi(linea + 12) != 0;
+            else if (!strncmp(linea, "volumen=", 8)) {
+                gOpc.volumen = atoi(linea + 8);
+                if (gOpc.volumen < 0) gOpc.volumen = 0;
+                if (gOpc.volumen > 10) gOpc.volumen = 10;
+            }
             else if (!strncmp(linea, "hz=", 3)) {
                 const int hz = atoi(linea + 3);
                 gOpc.hz = hz >= 44100 ? 2 : hz >= 32000 ? 1 : 0;
@@ -246,44 +252,8 @@ void guion_cuadro(uint32_t c) {
 void sonido_fuente(int* acc, int frames, void*) { emu_sonido_mezclar(acc, frames); }
 
 // --------------------------------------------------------------------------------- los mandos
-// el mando de PS3/PS4 -> el de 6 botones de Mega Drive: cuadrado/cruz/circulo = A/B/C (la fila de abajo),
-// L1/triangulo/R1 = X/Y/Z (la de arriba), Start = Start, L2 = Mode; la cruceta o el stick izquierdo. Select y PS
-// no van a la consola: vuelven al menu
-uint16_t pad_de_mando(const MandoEstado& e) {
-    uint16_t p = 0;
-    if (e.botones[MandoArriba] || e.ejes[MandoLY] < -0.5f) p |= MD_ARRIBA;
-    if (e.botones[MandoAbajo] || e.ejes[MandoLY] > 0.5f) p |= MD_ABAJO;
-    if (e.botones[MandoIzquierda] || e.ejes[MandoLX] < -0.5f) p |= MD_IZQ;
-    if (e.botones[MandoDerecha] || e.ejes[MandoLX] > 0.5f) p |= MD_DER;
-    if (e.botones[MandoX]) p |= MD_A;
-    if (e.botones[MandoA]) p |= MD_B;
-    if (e.botones[MandoB]) p |= MD_C;
-    if (e.botones[MandoL1]) p |= MD_X;
-    if (e.botones[MandoY]) p |= MD_Y;
-    if (e.botones[MandoR1]) p |= MD_Z;
-    if (e.botones[MandoStart]) p |= MD_START;
-    if (e.ejes[MandoLT] > 0.5f) p |= MD_MODE;
-    return p;
-}
-
-// las teclas del telefono -> el mando 1: la cruceta; OK y el 1 = A; 2 = B; 3 = C; 4/5/6 = X/Y/Z; 7 = Mode; la
-// tecla de abajo a la izquierda (o el 0) = Start. La de abajo a la derecha va al menu (y del menu vuelve)
-uint16_t pad_de_teclas() {
-    uint16_t p = 0;
-    if (plat_tecla(TK_ARRIBA)) p |= MD_ARRIBA;
-    if (plat_tecla(TK_ABAJO)) p |= MD_ABAJO;
-    if (plat_tecla(TK_IZQ)) p |= MD_IZQ;
-    if (plat_tecla(TK_DER)) p |= MD_DER;
-    if (plat_tecla(TK_CENTRO) || plat_tecla(TK_1)) p |= MD_A;
-    if (plat_tecla(TK_2)) p |= MD_B;
-    if (plat_tecla(TK_3)) p |= MD_C;
-    if (plat_tecla(TK_4)) p |= MD_X;
-    if (plat_tecla(TK_5)) p |= MD_Y;
-    if (plat_tecla(TK_6)) p |= MD_Z;
-    if (plat_tecla(TK_7)) p |= MD_MODE;
-    if (plat_tecla(TK_SOFT_IZQ) || plat_tecla(TK_0)) p |= MD_START;
-    return p;
-}
+// LOS MANDOS -> el de 6 botones de Mega Drive: lo que dice controles.h (lo que eligio cada jugador; en el menu, los de
+// fabrica). PS / Home y Select (si no tiene un boton asignado) no van a la consola: vuelven al menu
 
 // LOS MANDOS SE LEEN DE A POCO: en el N95 cada lectura es un pedido al servidor del driver Bluetooth, y con 4 por
 // cuadro (240 por segundo) el servidor no llegaba a atender a un mando que se prende (no se conectaba con el
@@ -320,7 +290,8 @@ uint16_t volante(int i) {
     return y > 0 ? MD_IZQ : MD_DER;
 }
 
-void leer_pads(uint16_t pads[4]) {
+// deFabrica: los controles de fabrica (el menu: que nadie quede trabado por una asignacion rara)
+void leer_pads(uint16_t pads[4], bool deFabrica) {
     int conectados = 0;
     gGuia = false;
     int revisar = -1;
@@ -334,28 +305,27 @@ void leer_pads(uint16_t pads[4]) {
             }
         }
     }
+    // los jugadores en el orden de los mandos conectados: el primero es el 1 aunque el driver lo tenga en otro lugar
+    uint16_t delMando[4] = { 0, 0, 0, 0 };
+    int j = 0;
     for (int i = 0; i < 4; i++) {
-        pads[i] = 0;
         if (!(gConectados & (1 << i)) && i != revisar) continue;
         MandoEstado e;
-        if (plat_mando(i, e)) {
-            pads[i] = pad_de_mando(e);
-            // (el volante se suma a la cruceta: inclinado a la derecha + abajo = la diagonal. Si la cruceta aprieta
-            // izquierda o derecha, mandan sus costados: nunca izquierda y derecha juntas)
-            if (gOpc.inclinacion && !gEnMenu && e.tipo == MandoWii) {
-                const uint16_t giro = volante(i);
-                if (!(pads[i] & (MD_IZQ | MD_DER))) pads[i] |= giro;
-            }
-            conectados |= 1 << i;
-            if (e.botones[MandoGuia] || e.botones[MandoSelect]) gGuia = true;
+        if (!plat_mando(i, e)) continue;
+        uint16_t p = controles_mando(j, e, deFabrica);
+        controles_tipo(j, e.tipo);
+        // (el volante se suma a la cruceta: inclinado a la derecha + abajo = la diagonal. Si la cruceta aprieta
+        // izquierda o derecha, mandan sus costados: nunca izquierda y derecha juntas)
+        if (gOpc.inclinacion && !gEnMenu && e.tipo == MandoWii) {
+            const uint16_t giro = volante(i);
+            if (!(p & (MD_IZQ | MD_DER))) p |= giro;
         }
+        if (e.botones[MandoGuia] || (e.botones[MandoSelect] && (deFabrica || controles_select_libre(j)))) gGuia = true;
+        conectados |= 1 << i;
+        delMando[j++] = p;
     }
-    // los jugadores en el orden de los mandos conectados: el primero es el 1 aunque el driver lo tenga en otro lugar
-    int j = 0;
-    for (int i = 0; i < 4; i++)
-        if (conectados & (1 << i)) pads[j++] = pads[i];
-    for (; j < 4; j++) pads[j] = 0;
-    pads[0] |= pad_de_teclas();
+    // las teclas del telefono (de fabrica, el jugador 1; se pueden asignar a cualquiera)
+    for (int k = 0; k < 4; k++) pads[k] = delMando[k] | controles_teclas(k, deFabrica);
     if (conectados != gConectados) {
         w3dLogf("juego: mandos conectados 0x%x", conectados);
         gConectados = conectados;
@@ -386,7 +356,7 @@ void dibujar_volumen(int pw, int ph) {
     const int ancho = 10 * 8, x0 = (pw - ancho) / 2, y0 = 6;
     pantalla_rectangulo(pw, ph, x0 - 3, y0 - 3, ancho + 4, 16, 0x000000ffu);
     for (int i = 0; i < 10; i++)
-        pantalla_rectangulo(pw, ph, x0 + i * 8, y0 + 8 - i, 6, 2 + i, i < gVolumen ? 0x40e040ffu : 0x404040ffu);
+        pantalla_rectangulo(pw, ph, x0 + i * 8, y0 + 8 - i, 6, 2 + i, i < gOpc.volumen ? 0x40e040ffu : 0x404040ffu);
 }
 
 void perfil_cuadro(uint64_t ahora) {
@@ -638,11 +608,11 @@ void a_la_partida() {
     gImagenSubida = 0xffffffff;   // (la imagen de la consola de nuevo en la pantalla)
 }
 
-// el menu: los botones de las teclas y de todos los mandos (cuadrado, cruz, Start o el centro eligen; la C del
-// telefono, circulo, Select o PS vuelven a la partida)
+// el menu: los botones de las teclas y de todos los mandos, con los controles de fabrica (cuadrado, cruz, Start o el
+// centro eligen; la C del telefono, circulo, Select o PS vuelven)
 bool cuadro_menu(int pw, int ph, uint64_t ahora) {
     uint16_t pads[4];
-    leer_pads(pads);
+    leer_pads(pads, true);
     const uint16_t todos = pads[0] | pads[1] | pads[2] | pads[3];
     // (al log, lo que llega de cada mando: si un boton no responde, se ve si llega)
     static uint16_t antes[4] = { 0, 0, 0, 0 };
@@ -682,8 +652,14 @@ bool cuadro_menu(int pw, int ph, uint64_t ahora) {
         emu_sonido_calidad(gOpc.filtro, gOpc.fmAlta);
         if (HZ_SONIDO[gOpc.hz] != gHzConsola) cambiar_hz();
         emu_dibujo_rapido(gOpc.rapido);
+        emu_sonido_volumen(gOpc.volumen * 256 / 10);
         w3dLogf("juego: opciones fps %d, multitap %d, escala %d, suave %d, tactil %d", gOpc.fps, gOpc.multitap,
                 gOpc.escala, gOpc.suave, gOpc.tactil);
+    } else if (accion == MENU_CAMBIO_CONTROLES) {
+        char ruta[512];
+        snprintf(ruta, sizeof(ruta), "%scontroles.txt", plat_carpeta_datos());
+        controles_archivo(ruta, true);
+        w3dLogf("juego: controles guardados en %s", ruta);
     } else if (accion == MENU_GUARDAR) {
         const int ranura = menu_ranura();
         char aviso[48];
@@ -728,6 +704,12 @@ void juego_iniciar(int hzSonido) {
     opciones(false);
     menu_opciones(&gOpc);
     menu_partidas(&gFuentePartidas);
+    {
+        char ruta[512];
+        snprintf(ruta, sizeof(ruta), "%scontroles.txt", plat_carpeta_datos());
+        controles_defecto(-1);
+        controles_archivo(ruta, false);
+    }
     menu_idioma_sistema(plat_espanol());
     leer_prueba();
     pantalla_iniciar();
@@ -745,7 +727,7 @@ void juego_iniciar(int hzSonido) {
     emu_dibujo_rapido(gOpc.rapido);
     w3dLogf("juego: sonido de la consola a %d Hz (la salida a %d); dibujo %s", gHzConsola, W3dAudioRate(),
             gOpc.rapido ? "rapido" : "preciso");
-    emu_sonido_volumen(gVolumen * 256 / 10);
+    emu_sonido_volumen(gOpc.volumen * 256 / 10);
     emu_sonido_calidad(gOpc.filtro, gOpc.fmAlta);
     W3dAudioFuente(sonido_fuente, 0);
     // con rom= (las pruebas) directo a la partida; si no, el menu
@@ -769,7 +751,7 @@ bool juego_cuadro() {
     if (gEnMenu) return cuadro_menu(pw, ph, ahora);
 
     uint16_t pads[4];
-    leer_pads(pads);
+    leer_pads(pads, false);
     // los controles en la pantalla: el jugador 1 (junto con el teclado y su mando)
     bool menuTactil = false;
     if (tactil_visible() && !esperando_soltar()) {
@@ -928,10 +910,11 @@ void juego_guion(const char* guion) {
 }
 
 void juego_volumen(int paso) {
-    gVolumen += paso;
-    if (gVolumen < 0) gVolumen = 0;
-    if (gVolumen > 10) gVolumen = 10;
-    emu_sonido_volumen(gVolumen * 256 / 10);
+    gOpc.volumen += paso;
+    if (gOpc.volumen < 0) gOpc.volumen = 0;
+    if (gOpc.volumen > 10) gOpc.volumen = 10;
+    emu_sonido_volumen(gOpc.volumen * 256 / 10);
     gVolumenHasta = plat_ahora_us() + 1500000;
-    w3dLogf("juego: volumen %d/10", gVolumen);
+    menu_redibujar();   // (la opcion de volumen del menu)
+    w3dLogf("juego: volumen %d/10", gOpc.volumen);
 }

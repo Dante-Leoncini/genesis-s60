@@ -10,8 +10,8 @@ suma una interfaz propia pensada para el teléfono: menú de ROMs, hasta **4 man
 
 Los instaladores están en [`sis/`](sis/), con la versión en el nombre:
 
-- **N95** y otros S60 3rd / 5th: [`sis/segaw3d_n95_1.8.sisx`](sis/segaw3d_n95_1.8.sisx)
-- **N8** y otros Symbian^3 / Anna / Belle: [`sis/segaw3d_n8_1.8.sisx`](sis/segaw3d_n8_1.8.sisx)
+- **N95** y otros S60 3rd / 5th: [`sis/segaw3d_n95_1.9.sisx`](sis/segaw3d_n95_1.9.sisx)
+- **N8** y otros Symbian^3 / Anna / Belle: [`sis/segaw3d_n8_1.9.sisx`](sis/segaw3d_n8_1.9.sisx)
 
 Las dos usan el mismo nombre en el teléfono: una reemplaza a la otra. Están firmados con un certificado propio: el
 teléfono tiene que aceptar aplicaciones sin firmar de Nokia (Administrador de aplicaciones > Configuración >
@@ -55,15 +55,23 @@ En el N95, Mega Bomberman en batalla de 4 anda a 60 fps. Sonic & Knuckles anda c
 | Mode | L2 | 7 |
 | Pausa y menú de ROMs | Select o PS | tecla derecha de abajo (o C) |
 
-En el menú: arriba y abajo para elegir, OK / cruz para jugar, **Start** para las opciones. La tecla derecha de abajo
-vuelve a la partida y la última fila, "[ Salir ]", cierra el emulador (en el N8: los botones de abajo, "Volver al
-juego" y "Salir"). En las opciones, "Cerrar emulador" (con OK) también lo cierra. Las teclas de volumen del costado
-cambian el volumen.
+Así vienen de fábrica; se cambian en el menú, en **Controles**.
 
-**Guardar la partida**: con un juego abierto, en el menú la primera fila es "[ Guardar partida ]": se elige la ranura
-(a la derecha se ve la captura de lo que tiene) y OK guarda. Al elegir un juego que tiene partidas guardadas se
-elige entre "Partida nueva" o una de ellas, con su fecha y hora. En el N8, tocar una fila la elige y tocarla otra vez
-guarda o juega. Las partidas quedan en `\segaw3d\datos\partidas\`.
+**Jugando, la tecla derecha de abajo pausa** y abre el menú: guardar la partida, cargar una guardada, cargar otra ROM,
+los controles, el volumen y las demás opciones, volver al juego y cerrar el emulador. La misma tecla vuelve al juego.
+Sin un juego abierto, el menú es la lista de las ROMs (OK para jugar, **Start** para las opciones). Las teclas de
+volumen del costado también cambian el volumen.
+
+**Las partidas**: en "Guardar partida" se elige la ranura (a la derecha se ve la captura de lo que tiene) y OK
+guarda. "Cargar partida guardada", o elegir en la lista un juego que tiene partidas, muestra "Partida nueva" y las
+guardadas, con su fecha y hora. En el N8, tocar una fila la elige y tocarla otra vez guarda o juega. Las partidas
+quedan en `\segaw3d\datos\partidas\`.
+
+**Controles**: se elige el jugador (1 a 4) y aparecen los botones de la Mega Drive con lo que tiene cada uno (las
+teclas del teléfono y, después de la barra, el botón del mando). OK en un botón y después se aprieta la tecla o el
+botón del mando nuevo; la tecla derecha de abajo cancela (no se puede asignar: es la del menú, igual que PS / Home).
+Select del mando va al menú mientras no tenga un botón asignado. El menú se maneja siempre con los controles de
+fábrica. Quedan en `\segaw3d\datos\controles.txt`.
 
 **Wiimote** (con bthid-s60 0.10 o más nuevo): 1 / A / 2 = A / B / C, + = Start, Home o - = menú. Para usarlo
 acostado, en la app Bluetooth HID se pueden girar sus flechas (0.12). La opción **Inclinar el Wiimote** lo usa como

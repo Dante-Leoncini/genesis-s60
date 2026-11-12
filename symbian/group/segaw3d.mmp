@@ -65,7 +65,7 @@ SOURCE          sega_contenedor.cpp pantalla_symbian.cpp
 
 // --- el emulador (src\pc\ y src\pantalla.cpp, con OpenGL, son solo la prueba en la PC)
 SOURCEPATH      ..\..\src
-SOURCE          juego.cpp menu.cpp tactil.cpp emu.c
+SOURCE          juego.cpp menu.cpp controles.cpp tactil.cpp emu.c
 
 // --- el nucleo de PicoDrive
 #include "pd_fuentes.mmh"
@@ -74,6 +74,7 @@ SOURCE          juego.cpp menu.cpp tactil.cpp emu.c
 SOURCEPATH      ..\..\..\..\Whisk3D\libs\Whisk3DCore\base
 SOURCE          w3dlog.cpp
 // los joysticks de PS3/PS4 por Bluetooth (bthidhost.dll se carga en runtime: sin el driver, no hay mandos y anda igual)
+SOURCEPATH      ..\..\..\..\Whisk3D\libs\Whisk3DCore\input
 SOURCE          W3dMandosSymbian.cpp
 SOURCEPATH      ..\..\..\..\Whisk3D\libs\Whisk3DCore\io
 SOURCE          w3dFilesystem.cpp
@@ -109,6 +110,7 @@ USERINCLUDE     ..\..\picodrive
 USERINCLUDE     ..\..\picodrive\zlib
 USERINCLUDE     ..\..\..\..\Whisk3D\libs\Whisk3DCore
 USERINCLUDE     ..\..\..\..\Whisk3D\libs\Whisk3DCore\base
+USERINCLUDE     ..\..\..\..\Whisk3D\libs\Whisk3DCore\input
 USERINCLUDE     ..\..\..\..\Whisk3D\libs\Whisk3DCore\audio
 USERINCLUDE     ..\..\..\..\Whisk3D\libs\Whisk3DCore\io
 // fscompat.h (el log del Core cierra el RFs sin importar efsrv@390, que el N95 no tiene)

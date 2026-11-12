@@ -44,7 +44,7 @@ OBJS := $(addprefix $(OBJDIR)/,$(FUENTES:.cpp=.o)) $(addprefix $(OBJDIR)/,$(FUEN
         $(addprefix $(OBJDIR)/core/,$(CORE_CPP:.cpp=.o)) $(addprefix $(OBJDIR)/pd/,$(PD_C:.c=.o))
 HEADERS := $(wildcard src/*.h)
 
-INCS := -Isrc -I$(CORE) -I$(CORE)/base -I$(CORE)/audio -I$(CORE)/io
+INCS := -Isrc -I$(CORE) -I$(CORE)/base -I$(CORE)/input -I$(CORE)/audio -I$(CORE)/io
 DEFS := -DW3D_SIN_EDITOR -DW3D_ENABLE_AUDIO -Wno-cpp
 ifneq ($(findstring MINGW,$(shell uname -s))$(findstring MSYS,$(shell uname -s))$(OS),)
 GL_LIBS := -lopengl32
