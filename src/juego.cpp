@@ -460,16 +460,156 @@ MenuAccion toques_menu() {
     return MENU_NADA;
 }
 
+// --------------------------------------------------------------------------------- las partidas guardadas
+// datos/partidas/<rom>.<n>.est: la cabecera (la fecha y la captura de la pantalla a la mitad del tamano) y despues el
+// estado de PicoDrive. datos/partidas/<rom>.srm: la SRAM del cartucho (los juegos con pila)
+struct CabezaPartida {
+    char marca[4];   // "W3DP"
+    int32_t fecha[6];
+    uint16_t ancho, alto;   // la captura (RGB565), que sigue a la cabecera
+};
+const char MARCA_PARTIDA[4] = { 'W', '3', 'D', 'P' };
+
+void carpeta_partidas(char* s, size_t n) { snprintf(s, n, "%spartidas/", plat_carpeta_datos()); }
+
+// el archivo de una ranura (ranura -1: el de la SRAM): el nombre de la ROM sin carpeta ni extension
+void ruta_partida(char* s, size_t n, const char* rom, int ranura) {
+    const char* b = rom;
+    for (const char* p = rom; *p; p++)
+        if (*p == '/' || *p == '\\') b = p + 1;
+    char nombre[128];
+    snprintf(nombre, sizeof(nombre), "%s", b);
+    char* punto = strrchr(nombre, '.');
+    if (punto && punto != nombre) *punto = 0;
+    char carpeta[512];
+    carpeta_partidas(carpeta, sizeof(carpeta));
+    if (ranura < 0) snprintf(s, n, "%s%s.srm", carpeta, nombre);
+    else snprintf(s, n, "%s%s.%d.est", carpeta, nombre, ranura + 1);
+}
+
+bool leer_cabeza(FILE* f, CabezaPartida& c) {
+    return fread(&c, sizeof(c), 1, f) == 1 && !memcmp(c.marca, MARCA_PARTIDA, 4) && c.ancho <= MENU_MINI_ANCHO &&
+           c.alto <= MENU_MINI_ALTO;
+}
+
+int partidas_listar(const char* rom, MenuPartida* p) {
+    int n = 0;
+    for (int r = 0; r < MENU_RANURAS; r++) {
+        p[r].usada = false;
+        char ruta[512];
+        ruta_partida(ruta, sizeof(ruta), rom, r);
+        FILE* f = fopen(ruta, "rb");
+        if (!f) continue;
+        CabezaPartida c;
+        if (leer_cabeza(f, c)) {
+            p[r].usada = true;
+            for (int k = 0; k < 6; k++) p[r].fecha[k] = c.fecha[k];
+            n++;
+        }
+        fclose(f);
+    }
+    return n;
+}
+
+bool partidas_captura(const char* rom, int ranura, uint16_t* img, int* ancho, int* alto) {
+    char ruta[512];
+    ruta_partida(ruta, sizeof(ruta), rom, ranura);
+    FILE* f = fopen(ruta, "rb");
+    if (!f) return false;
+    CabezaPartida c;
+    bool ok = leer_cabeza(f, c) && fread(img, 2, (size_t)c.ancho * c.alto, f) == (size_t)c.ancho * c.alto;
+    fclose(f);
+    *ancho = ok ? c.ancho : 0;
+    *alto = ok ? c.alto : 0;
+    return ok && c.ancho && c.alto;
+}
+
+const MenuFuentePartidas gFuentePartidas = { partidas_listar, partidas_captura };
+
+// la captura: la imagen de la consola a la mitad (cada pixel, el promedio de 4)
+uint16_t gCaptura[MENU_MINI_ANCHO * MENU_MINI_ALTO];
+void capturar(int* cw, int* ch) {
+    int w = 0, h = 0;
+    const uint16_t* img = emu_imagen(&w, &h);
+    *cw = w / 2 > MENU_MINI_ANCHO ? MENU_MINI_ANCHO : w / 2;
+    *ch = h / 2 > MENU_MINI_ALTO ? MENU_MINI_ALTO : h / 2;
+    for (int y = 0; y < *ch; y++)
+        for (int x = 0; x < *cw; x++) {
+            const uint16_t* p = img + y * 2 * w + x * 2;
+            const unsigned a = p[0], b = p[1], c = p[w], d = p[w + 1];
+            const unsigned r = ((a >> 11) + (b >> 11) + (c >> 11) + (d >> 11)) >> 2;
+            const unsigned g = (((a >> 5) & 63) + ((b >> 5) & 63) + ((c >> 5) & 63) + ((d >> 5) & 63)) >> 2;
+            const unsigned z = ((a & 31) + (b & 31) + (c & 31) + (d & 31)) >> 2;
+            gCaptura[y * *cw + x] = (uint16_t)((r << 11) | (g << 5) | z);
+        }
+}
+
+bool guardar_partida(int ranura) {
+    if (!gCargada || ranura < 0 || ranura >= MENU_RANURAS) return false;
+    char carpeta[512], ruta[512];
+    carpeta_partidas(carpeta, sizeof(carpeta));
+    plat_crear_carpeta(carpeta);
+    ruta_partida(ruta, sizeof(ruta), gRom, ranura);
+    FILE* f = fopen(ruta, "wb");
+    if (!f) {
+        w3dLogf("juego: no se pudo crear %s", ruta);
+        return false;
+    }
+    CabezaPartida c;
+    memcpy(c.marca, MARCA_PARTIDA, 4);
+    int fecha[6];
+    plat_fecha(fecha);
+    for (int k = 0; k < 6; k++) c.fecha[k] = fecha[k];
+    int w = 0, h = 0;
+    capturar(&w, &h);
+    c.ancho = (uint16_t)w;
+    c.alto = (uint16_t)h;
+    bool ok = fwrite(&c, sizeof(c), 1, f) == 1 && fwrite(gCaptura, 2, (size_t)w * h, f) == (size_t)w * h;
+    ok = ok && emu_estado(f, 1);
+    fclose(f);
+    if (!ok) remove(ruta);
+    w3dLogf("juego: partida %s en %s", ok ? "guardada" : "NO guardada", ruta);
+    return ok;
+}
+
+bool cargar_partida(int ranura) {
+    char ruta[512];
+    ruta_partida(ruta, sizeof(ruta), gRom, ranura);
+    FILE* f = fopen(ruta, "rb");
+    if (!f) return false;
+    CabezaPartida c;
+    bool ok = leer_cabeza(f, c) && fseek(f, (long)c.ancho * c.alto * 2, SEEK_CUR) == 0 && emu_estado(f, 0);
+    fclose(f);
+    w3dLogf("juego: partida %s de %s", ok ? "cargada" : "NO cargada", ruta);
+    return ok;
+}
+
+// la SRAM del juego cargado, si cambio (al ir al menu, al pasar al fondo, al cambiar de ROM y al salir)
+void guardar_sram() {
+    if (!gCargada) return;
+    char carpeta[512], ruta[512];
+    carpeta_partidas(carpeta, sizeof(carpeta));
+    plat_crear_carpeta(carpeta);
+    ruta_partida(ruta, sizeof(ruta), gRom, -1);
+    if (emu_sram(ruta, 1)) w3dLogf("juego: SRAM guardada en %s", ruta);
+}
+
 // --------------------------------------------------------------------------------- el menu y la partida
 // los primeros cuadros de cada ROM van al log (y al archivo enseguida): si el nucleo se cae, se ve donde
 int gCuadrosRastro = 0;
 
 bool cargar(const char* ruta) {
+    guardar_sram();   // (la del juego que estaba)
     w3dLogf("juego: ROM %s", ruta);
     w3dLogBajar();
     gCuadrosRastro = 5;
     gCargada = emu_cargar(ruta) != 0;
     if (!gCargada) return false;
+    {
+        char srm[512];
+        ruta_partida(srm, sizeof(srm), ruta, -1);
+        if (emu_sram(srm, 0)) w3dLogf("juego: SRAM de %s", srm);
+    }
     const int entrada = entrada_del_juego();
     emu_entrada(entrada);
     w3dLogf("juego: %d Hz de video, %d Hz de sonido, entrada %d (%s)", emu_hz_video(), W3dAudioRate(), entrada,
@@ -480,6 +620,7 @@ bool cargar(const char* ruta) {
 }
 
 void abrir_menu() {
+    guardar_sram();
     gEsperarSoltar = true;
     gDedoMenu = -1;
     char ultimaRom[512];
@@ -526,7 +667,9 @@ bool cuadro_menu(int pw, int ph, uint64_t ahora) {
         char ruta[512];
         strncpy(ruta, menu_elegida(), sizeof(ruta) - 1);
         ruta[sizeof(ruta) - 1] = 0;
+        const int ranura = menu_ranura();
         if (cargar(ruta)) {
+            if (ranura >= 0) cargar_partida(ranura);
             ultima(ruta, 0, true);
             a_la_partida();
             gGuiaAntes = gGuia;
@@ -541,7 +684,16 @@ bool cuadro_menu(int pw, int ph, uint64_t ahora) {
         emu_dibujo_rapido(gOpc.rapido);
         w3dLogf("juego: opciones fps %d, multitap %d, escala %d, suave %d, tactil %d", gOpc.fps, gOpc.multitap,
                 gOpc.escala, gOpc.suave, gOpc.tactil);
+    } else if (accion == MENU_GUARDAR) {
+        const int ranura = menu_ranura();
+        char aviso[48];
+        if (guardar_partida(ranura))
+            snprintf(aviso, sizeof(aviso), menu_tr("Guardada en la ranura %d", "Saved to slot %d"), ranura + 1);
+        else
+            snprintf(aviso, sizeof(aviso), "%s", menu_tr("No se pudo guardar", "Could not save"));
+        menu_aviso(aviso, ahora + 3000000);
     } else if (accion == MENU_SALIR) {
+        guardar_sram();
         plat_salir();
         return false;
     } else if (accion == MENU_SEGUIR) {
@@ -575,6 +727,7 @@ void juego_iniciar(int hzSonido) {
     gOpc.hz = hzSonido >= 44100 ? 2 : hzSonido >= 32000 ? 1 : 0;
     opciones(false);
     menu_opciones(&gOpc);
+    menu_partidas(&gFuentePartidas);
     menu_idioma_sistema(plat_espanol());
     leer_prueba();
     pantalla_iniciar();
@@ -754,6 +907,7 @@ void juego_redibujar() {
 }
 
 void juego_pausa(bool pausa) {
+    if (pausa) guardar_sram();   // (al fondo: el sistema puede cerrar la app sin avisar)
     gPausa = pausa;
     gRelojPuesto = false;
     if (!pausa) juego_redibujar();
@@ -761,6 +915,7 @@ void juego_pausa(bool pausa) {
 }
 
 void juego_terminar() {
+    guardar_sram();
     W3dAudioFuente(0, 0);
     W3dAudioShutdown();
     emu_terminar();

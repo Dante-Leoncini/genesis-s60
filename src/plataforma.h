@@ -40,3 +40,7 @@ int plat_toques(Toque* toques, int max);
 bool plat_escala();
 // el idioma del sistema es el castellano (el menu sale en castellano; si no, en ingles)
 bool plat_espanol();
+// la fecha y la hora del telefono (la local): anio, mes (1..12), dia (1..31), hora, minutos, segundos
+void plat_fecha(int f[6]);
+// crea la carpeta 'ruta' si no esta (con la barra del final o sin ella)
+void plat_crear_carpeta(const char* ruta);

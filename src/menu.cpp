@@ -11,13 +11,34 @@ extern "C" unsigned char fontdata8x8[64 * 16];   // (picodrive/platform/libpicof
 namespace {
 const int MAX_ROMS = 512;
 
+// las filas de la lista: las ROMs, "Guardar partida" (la primera, con un juego cargado) y "Salir" (la ultima, con
+// teclas)
+enum { FILA_ROM, FILA_GUARDAR, FILA_SALIR };
 struct Rom {
     char ruta[256];
     char nombre[64];
+    int tipo;   // FILA_*
 };
 Rom* gRoms = 0;
-int gCantidad = 0;        // (con la fila de "Salir", si esta)
+int gCantidad = 0;        // (con las filas de "Guardar partida" y "Salir", si estan)
 bool gFilaSalir = false;  // la ultima fila es "Salir" (con teclas; con el dedo es un boton del pie)
+bool gFilaGuardar = false;   // la primera fila es "Guardar partida" (hay un juego cargado)
+char gRomJuego[256] = "";    // la ROM del juego cargado (la de "Guardar partida")
+
+// LAS PARTIDAS: la pantalla que elige la ranura (para guardar, o al abrir una ROM con partidas guardadas, para
+// cargar). Sus filas son ranuras (-1 = partida nueva); a la derecha, la captura de la elegida
+const MenuFuentePartidas* gFuente = 0;
+bool gEnPartidas = false, gPartGuardar = false;
+char gPartRom[256] = "";
+MenuPartida gPart[MENU_RANURAS];
+int gPartFilas[MENU_RANURAS + 1];
+int gPartN = 0;
+int gRanura = -1;
+uint16_t gMini[MENU_MINI_ANCHO * MENU_MINI_ALTO];
+int gMiniW = 0, gMiniH = 0, gMiniDe = -2;   // (gMiniDe: la ranura de la captura cargada; -2 = ninguna)
+// el aviso del pie
+char gAviso[48] = "";
+uint64_t gAvisoHasta = 0;
 bool gEspanol = true;     // el idioma del sistema
 bool gHayJuego = false;
 bool gCambio = true;
@@ -36,7 +57,7 @@ struct Lista {
     int elegida;
     int desp;
 };
-Lista gRomsL = { 0, 0 }, gOpcL = { 0, 0 };
+Lista gRomsL = { 0, 0 }, gOpcL = { 0, 0 }, gPartL = { 0, 0 };
 
 // las opciones (la pantalla que abre Start)
 MenuOpciones* gOpciones = 0;
@@ -249,27 +270,151 @@ MenuAccion actualizar_opciones(int botones, int nuevos, uint64_t ahora) {
     return cambiar_opcion(gOpcs[gOpcL.elegida], (mueve & MENU_IZQ) ? -1 : 1);
 }
 
+// ------------------------------------------------------------------------------------------- las partidas
+// el ancho de las filas en la pantalla de las partidas (a la derecha va la captura)
+int partidas_ancho() { return gW - MENU_MINI_ANCHO - 8; }
+
+void abrir_partidas(bool guardar, const char* rom) {
+    gEnPartidas = true;
+    gPartGuardar = guardar;
+    gCambio = true;
+    strncpy(gPartRom, rom, sizeof(gPartRom) - 1);
+    gPartRom[sizeof(gPartRom) - 1] = 0;
+    memset(gPart, 0, sizeof(gPart));
+    if (gFuente) gFuente->listar(gPartRom, gPart);
+    gPartN = 0;
+    if (!guardar) gPartFilas[gPartN++] = -1;   // (cargar: primero, la partida nueva; despues, las guardadas)
+    // (guardar: todas las ranuras, la primera libre elegida; cargar: las guardadas, la mas nueva elegida)
+    int elegida = -1;
+    for (int r = 0; r < MENU_RANURAS; r++) {
+        if (!guardar && !gPart[r].usada) continue;
+        if (guardar && elegida < 0 && !gPart[r].usada) elegida = gPartN;
+        gPartFilas[gPartN++] = r;
+    }
+    if (!guardar) {
+        elegida = gPartN > 1 ? 1 : 0;
+        for (int i = 1; i < gPartN; i++) {
+            const int* a = gPart[gPartFilas[i]].fecha;
+            const int* b = gPart[gPartFilas[elegida]].fecha;
+            int k = 0;
+            while (k < 5 && a[k] == b[k]) k++;
+            if (a[k] > b[k]) elegida = i;
+        }
+    }
+    gPartL.elegida = elegida < 0 ? 0 : elegida;
+    gPartL.desp = 0;
+    seguir(gPartL, gPartN);
+    gMiniDe = -2;
+}
+
+// la captura de la fila elegida (se lee al cambiar de fila)
+void cargar_mini() {
+    const int r = gPartFilas[gPartL.elegida];
+    if (r == gMiniDe) return;
+    gMiniDe = r;
+    gMiniW = gMiniH = 0;
+    if (r >= 0 && gPart[r].usada && gFuente && !gFuente->captura(gPartRom, r, gMini, &gMiniW, &gMiniH)) gMiniW = gMiniH = 0;
+    if (gMiniW > MENU_MINI_ANCHO || gMiniH > MENU_MINI_ALTO) gMiniW = gMiniH = 0;
+}
+
+void partida_texto(int fila, char* s, int n) {
+    const int r = gPartFilas[fila];
+    if (r < 0) {
+        snprintf(s, n, "%s", tr("Partida nueva", "New game"));
+        return;
+    }
+    const MenuPartida& p = gPart[r];
+    if (!p.usada) snprintf(s, n, "%d  %s", r + 1, tr("(libre)", "(empty)"));
+    else
+        snprintf(s, n, "%d  %02d/%02d/%02d %02d:%02d", r + 1, p.fecha[2], p.fecha[1], p.fecha[0] % 100, p.fecha[3],
+                 p.fecha[4]);
+}
+
+// elegir la fila de las partidas: guardar ahi, o jugar (nueva o cargando esa ranura)
+MenuAccion elegir_partida(int fila) {
+    gRanura = gPartFilas[fila];
+    gEnPartidas = false;
+    gCambio = true;
+    return gPartGuardar ? MENU_GUARDAR : MENU_JUGAR;
+}
+
+MenuAccion actualizar_partidas(int botones, int nuevos, uint64_t ahora) {
+    if (nuevos & (MENU_OPCIONES | MENU_VOLVER)) {
+        gEnPartidas = false;
+        gCambio = true;
+        return MENU_NADA;
+    }
+    if (nuevos & MENU_ELEGIR) return gPartN ? elegir_partida(gPartL.elegida) : MENU_NADA;
+    const int mueve = botones & (MENU_ARRIBA | MENU_ABAJO);
+    if (!mover(nuevos, mueve, ahora) || !gPartN) return MENU_NADA;
+    gPartL.elegida = (gPartL.elegida + ((mueve & MENU_ABAJO) ? 1 : gPartN - 1)) % gPartN;
+    seguir(gPartL, gPartN);
+    gCambio = true;
+    return MENU_NADA;
+}
+
+// elegir una fila de la lista de las ROMs
+MenuAccion elegir_rom(int i) {
+    if (i < 0 || i >= gCantidad) return MENU_NADA;
+    const Rom& r = gRoms[i];
+    if (r.tipo == FILA_SALIR) return MENU_SALIR;
+    if (r.tipo == FILA_GUARDAR) {
+        abrir_partidas(true, gRomJuego);
+        return MENU_NADA;
+    }
+    // (si la ROM tiene partidas guardadas, primero se elige: nueva o una de esas)
+    MenuPartida p[MENU_RANURAS];
+    if (gFuente && gFuente->listar(r.ruta, p) > 0) {
+        abrir_partidas(false, r.ruta);
+        return MENU_NADA;
+    }
+    gRanura = -1;
+    return MENU_JUGAR;
+}
+
 // LAS FILAS de una lista (con el desplazamiento, recortadas a la zona de la lista)
-void dibujar_filas(uint16_t* img, const Lista& l, int n, bool opciones) {
+enum { FILAS_ROMS, FILAS_OPCIONES, FILAS_PARTIDAS };
+void dibujar_filas(uint16_t* img, const Lista& l, int n, int cuales) {
     const int y0 = lista_y0(), y1 = y0 + lista_alto();
+    const int ancho = cuales == FILAS_PARTIDAS ? partidas_ancho() : gW;
     char nombre[64], valor[32];
     for (int i = 0; i < n; i++) {
         const int y = y0 + i * gFila - l.desp;
         if (y + gFila <= y0 || y >= y1) continue;
         const bool elegida = i == l.elegida;
-        if (elegida) rectangulo(img, 0, y, gW, gFila - 1, BARRA, y0, y1);
-        else if (gTactil) rectangulo(img, 0, y + gFila - 1, gW, 1, 0x18E3, y0, y1);   // (una raya entre filas)
+        if (elegida) rectangulo(img, 0, y, ancho, gFila - 1, BARRA, y0, y1);
+        else if (gTactil) rectangulo(img, 0, y + gFila - 1, ancho, 1, 0x18E3, y0, y1);   // (una raya entre filas)
         const int ty = y + (gFila - 8) / 2;
         if (ty < y0 || ty + 8 > y1) continue;   // (la letra entera o nada)
         const uint16_t c = elegida ? ELEGIDA : TEXTO;
-        if (opciones) {
+        if (cuales == FILAS_OPCIONES) {
             opcion_texto(gOpcs[i], nombre, valor, sizeof(valor));
             texto(img, 8, ty, nombre, c, 26);
             texto(img, gW - 8 - (int)strlen(valor) * 8, ty, valor, elegida ? TITULO : c);
+        } else if (cuales == FILAS_PARTIDAS) {
+            partida_texto(i, nombre, sizeof(nombre));
+            texto(img, 6, ty, nombre, c, (ancho - 8) / 8);
         } else {
-            texto(img, 8, ty, gRoms[i].nombre, c, (gW - 16) / 8);
+            texto(img, 8, ty, gRoms[i].nombre, gRoms[i].tipo == FILA_GUARDAR && !elegida ? TITULO : c, (gW - 16) / 8);
         }
     }
+}
+
+// la captura de la partida elegida, a la derecha de las filas (o un recuadro con lo que es)
+void dibujar_mini(uint16_t* img) {
+    cargar_mini();
+    const int x0 = partidas_ancho() + 4, y0 = lista_y0() + 2, alto = lista_alto() - 4;
+    const int w = gMiniW ? gMiniW : MENU_MINI_ANCHO, h = gMiniH ? gMiniH : (alto < 112 ? alto : 112);
+    const int x = x0 + (MENU_MINI_ANCHO - w) / 2, y = y0 + (alto - h) / 2;
+    rectangulo(img, x - 1, y - 1, w + 2, h + 2, PIE);
+    if (!gMiniW) {
+        rectangulo(img, x, y, w, h, 0x0000);
+        const int r = gPartFilas[gPartL.elegida];
+        const char* s = r < 0 ? tr("NUEVA", "NEW") : tr("LIBRE", "EMPTY");
+        texto(img, x + (w - (int)strlen(s) * 8) / 2, y + (h - 8) / 2, s, PIE);
+        return;
+    }
+    for (int j = 0; j < h && y + j < gH; j++) memcpy(img + (y + j) * gW + x, gMini + j * gMiniW, w * 2);
 }
 
 // la cabecera: el titulo y (con el dedo) el boton de la derecha
@@ -284,7 +429,9 @@ void dibujar_cabecera(uint16_t* img, const char* titulo, const char* derecha, co
     rectangulo(img, 0, gCab, gW, 1, PIE);
 }
 
-const char* boton_cabecera() { return gEnOpciones ? tr("LISTO", "DONE") : tr("OPCIONES", "OPTIONS"); }
+const char* boton_cabecera() {
+    return gEnPartidas ? tr("VOLVER", "BACK") : gEnOpciones ? tr("LISTO", "DONE") : tr("OPCIONES", "OPTIONS");
+}
 
 // el ancho del boton de la cabecera (para saber si se toco)
 int boton_cabecera_x() { return gW - ((int)strlen(boton_cabecera()) * 8 + 16) - 2; }
@@ -340,22 +487,45 @@ void menu_tamano(int* ancho, int* alto) {
     *alto = gH;
 }
 
+void menu_partidas(const MenuFuentePartidas* fuente) { gFuente = fuente; }
+
+int menu_ranura() { return gRanura; }
+
+void menu_aviso(const char* texto, uint64_t hastaUs) {
+    snprintf(gAviso, sizeof(gAviso), "%s", texto ? texto : "");
+    gAvisoHasta = hastaUs;
+    gCambio = true;
+}
+
 void menu_abrir(const char* carpeta, const char* ultima, bool hayJuego) {
     gHayJuego = hayJuego;
     gCambio = true;
     gEnOpciones = false;
+    gEnPartidas = false;
+    gAvisoHasta = 0;
     if (!gOpcsN) armar_opciones();
     gAntes = ~0;   // (lo que ya venia apretado -el boton que abrio el menu- no cuenta hasta soltarlo)
     if (!gRoms) gRoms = (Rom*)malloc(sizeof(Rom) * MAX_ROMS);
     if (!gRoms) return;
     strncpy(gCarpeta, carpeta, sizeof(gCarpeta) - 1);
     gCantidad = 0;
+    // con un juego cargado, la primera fila: guardar la partida (el nombre se pone al dibujar, por el idioma)
+    gFilaGuardar = hayJuego && ultima && ultima[0];
+    if (gFilaGuardar) {
+        strncpy(gRomJuego, ultima, sizeof(gRomJuego) - 1);
+        gRomJuego[sizeof(gRomJuego) - 1] = 0;
+        Rom& g = gRoms[gCantidad++];
+        g.ruta[0] = 0;
+        g.nombre[0] = 0;
+        g.tipo = FILA_GUARDAR;
+    }
     DIR* d = opendir(carpeta);
     if (d) {
         struct dirent* e;
         while ((e = readdir(d)) != 0 && gCantidad < MAX_ROMS - 1) {
             if (!es_rom(e->d_name)) continue;
             Rom& r = gRoms[gCantidad++];
+            r.tipo = FILA_ROM;
             snprintf(r.ruta, sizeof(r.ruta), "%s%s", carpeta, e->d_name);
             // el nombre sin la extension
             strncpy(r.nombre, e->d_name, sizeof(r.nombre) - 1);
@@ -365,23 +535,25 @@ void menu_abrir(const char* carpeta, const char* ultima, bool hayJuego) {
         }
         closedir(d);
     }
-    qsort(gRoms, gCantidad, sizeof(Rom), comparar);
+    const int primera = gFilaGuardar ? 1 : 0;
+    qsort(gRoms + primera, gCantidad - primera, sizeof(Rom), comparar);
     // con teclas, la ultima fila: salir del emulador (ruta vacia; el nombre se pone al dibujar, por el idioma)
     gFilaSalir = !gTactil;
     if (gFilaSalir) {
         gRoms[gCantidad].ruta[0] = 0;
         gRoms[gCantidad].nombre[0] = 0;
+        gRoms[gCantidad].tipo = FILA_SALIR;
         gCantidad++;
     }
     gRomsL.elegida = 0;
     for (int i = 0; ultima && ultima[0] && i < gCantidad; i++)
-        if (!strcmp(gRoms[i].ruta, ultima)) gRomsL.elegida = i;
+        if (gRoms[i].tipo == FILA_ROM && !strcmp(gRoms[i].ruta, ultima)) gRomsL.elegida = i;
     // (la elegida a la mitad de la lista)
     gRomsL.desp = gRomsL.elegida * gFila - lista_alto() / 2;
     recortar(gRomsL, gCantidad);
 }
 
-int menu_cantidad() { return gCantidad - (gFilaSalir ? 1 : 0); }   // (sin la fila de salir)
+int menu_cantidad() { return gCantidad - (gFilaSalir ? 1 : 0) - (gFilaGuardar ? 1 : 0); }   // (solo las ROMs)
 
 void menu_redibujar() { gCambio = true; }
 
@@ -395,6 +567,11 @@ void menu_mandos(int conectados) {
 MenuAccion menu_actualizar(int botones, uint64_t ahora) {
     const int nuevos = botones & ~gAntes;
     gAntes = botones;
+    if (gAvisoHasta && ahora > gAvisoHasta) {   // (se termino el aviso: el pie de siempre)
+        gAvisoHasta = 0;
+        gCambio = true;
+    }
+    if (gEnPartidas) return actualizar_partidas(botones, nuevos, ahora);
     if (gEnOpciones) return actualizar_opciones(botones, nuevos, ahora);
     if (nuevos & MENU_OPCIONES) {
         gEnOpciones = true;
@@ -404,7 +581,7 @@ MenuAccion menu_actualizar(int botones, uint64_t ahora) {
         return MENU_NADA;
     }
     if ((nuevos & MENU_VOLVER) && gHayJuego) return MENU_SEGUIR;
-    if ((nuevos & MENU_ELEGIR) && gCantidad) return gRoms[gRomsL.elegida].ruta[0] ? MENU_JUGAR : MENU_SALIR;
+    if ((nuevos & MENU_ELEGIR) && gCantidad) return elegir_rom(gRomsL.elegida);
     const int mueve = botones & (MENU_ARRIBA | MENU_ABAJO | MENU_IZQ | MENU_DER);
     if (!mover(nuevos, mueve, ahora)) return MENU_NADA;
     const int pagina = lista_alto() / gFila > 1 ? lista_alto() / gFila : 1;
@@ -428,8 +605,8 @@ MenuAccion menu_actualizar(int botones, uint64_t ahora) {
 }
 
 MenuAccion menu_toque(int tipo, int x, int y) {
-    Lista& l = gEnOpciones ? gOpcL : gRomsL;
-    const int n = gEnOpciones ? gOpcsN : gCantidad;
+    Lista& l = gEnPartidas ? gPartL : gEnOpciones ? gOpcL : gRomsL;
+    const int n = gEnPartidas ? gPartN : gEnOpciones ? gOpcsN : gCantidad;
     if (tipo == TOQUE_APOYA) {
         gToqueX0 = x;
         gToqueY0 = y;
@@ -453,7 +630,9 @@ MenuAccion menu_toque(int tipo, int x, int y) {
     gCambio = true;
     if (gZona == ZONA_CAB) {
         if (gToqueX0 >= boton_cabecera_x()) {
-            if (gEnOpciones) {
+            if (gEnPartidas) {
+                gEnPartidas = false;
+            } else if (gEnOpciones) {
                 gEnOpciones = false;
             } else {
                 gEnOpciones = true;
@@ -464,7 +643,7 @@ MenuAccion menu_toque(int tipo, int x, int y) {
         return MENU_NADA;
     }
     if (gZona == ZONA_PIE) {
-        if (gEnOpciones) return MENU_NADA;
+        if (gEnOpciones || gEnPartidas) return MENU_NADA;
         int volverX0, salirX0, salirX1;
         botones_pie(&volverX0, &salirX0, &salirX1);
         if (gToqueX0 >= salirX0 && gToqueX0 < salirX1) return MENU_SALIR;
@@ -472,18 +651,40 @@ MenuAccion menu_toque(int tipo, int x, int y) {
     }
     const int i = (y - lista_y0() + l.desp) / gFila;
     if (y < lista_y0() || i < 0 || i >= n) return MENU_NADA;
+    // las partidas: el primer toque la elige (se ve la captura), el segundo en la misma la confirma
+    if (gEnPartidas) {
+        if (gToqueX0 >= partidas_ancho()) return MENU_NADA;   // (la captura)
+        if (i != l.elegida) {
+            l.elegida = i;
+            return MENU_NADA;
+        }
+        return elegir_partida(i);
+    }
     l.elegida = i;
     if (gEnOpciones) return cambiar_opcion(gOpcs[i], 1);
-    return gRoms[i].ruta[0] ? MENU_JUGAR : MENU_SALIR;
+    return elegir_rom(i);
 }
 
 bool menu_dibujar(uint16_t* img) {
     if (!gCambio) return false;
     gCambio = false;
     rectangulo(img, 0, 0, gW, gH, FONDO);
+    if (gEnPartidas) {
+        dibujar_cabecera(img, gPartGuardar ? tr("GUARDAR PARTIDA", "SAVE GAME") : tr("PARTIDAS", "SAVED GAMES"), 0,
+                         boton_cabecera());
+        dibujar_filas(img, gPartL, gPartN, FILAS_PARTIDAS);
+        dibujar_mini(img);
+        rectangulo(img, 0, gH - gPie, gW, 1, PIE);
+        const char* pie = gTactil ? (gPartGuardar ? tr("Toca otra vez para guardar", "Tap again to save")
+                                                  : tr("Toca otra vez para jugar", "Tap again to play"))
+                                  : (gPartGuardar ? tr("OK: guardar   Der: volver", "OK: save   Right: back")
+                                                  : tr("OK: jugar   Der: volver", "OK: play   Right: back"));
+        texto(img, 8, gH - gPie + (gPie - 8) / 2, pie, PIE);
+        return true;
+    }
     if (gEnOpciones) {
         dibujar_cabecera(img, tr("OPCIONES", "OPTIONS"), 0, boton_cabecera());
-        dibujar_filas(img, gOpcL, gOpcsN, true);
+        dibujar_filas(img, gOpcL, gOpcsN, FILAS_OPCIONES);
         rectangulo(img, 0, gH - gPie, gW, 1, PIE);
         texto(img, 8, gH - gPie + (gPie - 8) / 2,
               gTactil ? tr("Tocar una opcion la cambia", "Tap an option to change it")
@@ -492,17 +693,21 @@ bool menu_dibujar(uint16_t* img) {
         return true;
     }
     if (gFilaSalir) strcpy(gRoms[gCantidad - 1].nombre, tr("[ Salir ]", "[ Exit ]"));
+    if (gFilaGuardar) strcpy(gRoms[0].nombre, tr("[ Guardar partida ]", "[ Save game ]"));
     char linea[64];
     snprintf(linea, sizeof(linea), "%d", menu_cantidad());
-    dibujar_cabecera(img, "MEGA DRIVE W3D", linea, boton_cabecera());
+    // (el aviso: con teclas en el pie; con el dedo en la cabecera, que el pie tiene los botones)
+    dibujar_cabecera(img, gAvisoHasta && gTactil ? gAviso : "MEGA DRIVE W3D", linea, boton_cabecera());
     if (menu_cantidad() == 0) {
         texto(img, 8, lista_y0() + 24, tr("No hay ROMs en", "No ROMs in"), TEXTO);
         texto(img, 8, lista_y0() + 36, gCarpeta, TEXTO, 39);
     }
-    dibujar_filas(img, gRomsL, gCantidad, false);
-    // el pie: como se elige (con el dedo, los botones volver al juego y salir) y los mandos conectados
+    dibujar_filas(img, gRomsL, gCantidad, FILAS_ROMS);
+    // el pie: como se elige (con el dedo, los botones volver al juego y salir) y los mandos conectados; o el aviso
     rectangulo(img, 0, gH - gPie, gW, 1, PIE);
-    if (gTactil) {
+    if (gAvisoHasta && !gTactil) {
+        texto(img, 8, gH - gPie + (gPie - 8) / 2, gAviso, TITULO, (gW - 8 - 4 * 12 - 16) / 8);
+    } else if (gTactil) {
         int volverX0, salirX0, salirX1;
         botones_pie(&volverX0, &salirX0, &salirX1);
         if (gHayJuego)

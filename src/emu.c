@@ -11,6 +11,7 @@
 #define __builtin_expect(x, esperado) (x)
 #endif
 #include <pico/pico_int.h>
+#include <pico/state.h>
 #endif
 #include <stdarg.h>
 #include <stdio.h>
@@ -307,6 +308,43 @@ static void convertir_rapido(void) {
 }
 
 void emu_reiniciar(void) { PicoReset(); }
+
+/* LAS PARTIDAS: el estado entero de la consola (el de PicoDrive) desde donde este el archivo: el juego escribe antes
+ * su cabecera (la fecha y la captura). PicoDrive solo se corre con SEEK_CUR: la cabecera no le molesta */
+int emu_estado(void* archivo, int guardar) {
+    int r;
+    if (!gCargado || !archivo) return 0;
+    r = PicoStateFP(archivo, guardar, (arearw*)fread, (arearw*)fwrite, (areaeof*)feof, (areaseek*)fseek);
+    if (!guardar && r == 0) Pico.m.dirtyPal = 1;
+    return r == 0;
+}
+
+/* LA SRAM DEL CARTUCHO (la pila de los que guardan la partida: Sonic 3, Phantasy Star, ...): como PicoDrive, sin los
+ * ceros del final */
+int emu_sram(const char* ruta, int guardar) {
+    unsigned char* datos = Pico.sv.data;
+    int largo = (int)Pico.sv.size;
+    FILE* f;
+    if (!gCargado || !datos || largo <= 0) return 0;
+    if (!guardar) {
+        int leido;
+        f = fopen(ruta, "rb");
+        if (!f) return 0;
+        leido = (int)fread(datos, 1, largo, f);
+        fclose(f);
+        Pico.sv.changed = 0;
+        return leido > 0;
+    }
+    if (!Pico.sv.changed) return 0;
+    Pico.sv.changed = 0;
+    while (largo > 0 && !datos[largo - 1]) largo--;
+    if (!largo) return 0;
+    f = fopen(ruta, "wb");
+    if (!f) return 0;
+    largo = (int)fwrite(datos, 1, largo, f) == largo;
+    fclose(f);
+    return largo;
+}
 
 void emu_cuadro(const uint16_t pads[4], int dibujar) {
     int i;

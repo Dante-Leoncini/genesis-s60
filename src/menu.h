@@ -17,8 +17,28 @@ enum {
     MENU_ARRIBA = 1 << 0, MENU_ABAJO = 1 << 1, MENU_IZQ = 1 << 2, MENU_DER = 1 << 3,
     MENU_ELEGIR = 1 << 4, MENU_VOLVER = 1 << 5, MENU_OPCIONES = 1 << 6
 };
-// lo que el menu le contesta al juego
-enum MenuAccion { MENU_NADA, MENU_JUGAR, MENU_SEGUIR, MENU_SALIR, MENU_CAMBIO_OPCIONES };
+// lo que el menu le contesta al juego (MENU_JUGAR y MENU_GUARDAR: la ranura en menu_ranura)
+enum MenuAccion { MENU_NADA, MENU_JUGAR, MENU_SEGUIR, MENU_SALIR, MENU_CAMBIO_OPCIONES, MENU_GUARDAR };
+
+// LAS PARTIDAS GUARDADAS, de a ranuras, con la fecha y una captura de la pantalla. Con un juego cargado, la primera
+// fila de la lista es "Guardar partida" (elegir la ranura); al elegir una ROM que tiene partidas, se elige entre una
+// partida nueva o una de las guardadas. Los archivos los maneja el juego: el menu le pide la lista y las capturas
+enum { MENU_RANURAS = 8, MENU_MINI_ANCHO = 160, MENU_MINI_ALTO = 120 };
+struct MenuPartida {
+    bool usada;
+    int fecha[6];   // anio, mes (1..12), dia, hora, minutos, segundos
+};
+struct MenuFuentePartidas {
+    // las MENU_RANURAS partidas de la ROM 'ruta'; devuelve cuantas hay
+    int (*listar)(const char* ruta, MenuPartida* partidas);
+    // la captura de una ranura (hasta MENU_MINI_ANCHO x MENU_MINI_ALTO); false = no hay
+    bool (*captura)(const char* ruta, int ranura, uint16_t* img, int* ancho, int* alto);
+};
+void menu_partidas(const MenuFuentePartidas* fuente);
+// despues de MENU_JUGAR: -1 = partida nueva, 0.. = cargar esa ranura; despues de MENU_GUARDAR: donde guardar
+int menu_ranura();
+// un aviso en el pie del menu ("Partida guardada") hasta 'hastaUs' (el reloj de menu_actualizar)
+void menu_aviso(const char* texto, uint64_t hastaUs);
 
 // LAS OPCIONES (Start en el menu): las guarda el juego; el menu las cambia y avisa con MENU_CAMBIO_OPCIONES
 enum { MULTITAP_AUTO, MULTITAP_SIEMPRE, MULTITAP_NUNCA };

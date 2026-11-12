@@ -10,8 +10,8 @@ suma una interfaz propia pensada para el teléfono: menú de ROMs, hasta **4 man
 
 Los instaladores están en [`sis/`](sis/), con la versión en el nombre:
 
-- **N95** y otros S60 3rd / 5th: [`sis/segaw3d_n95_1.5.sisx`](sis/segaw3d_n95_1.5.sisx)
-- **N8** y otros Symbian^3 / Anna / Belle: [`sis/segaw3d_n8_1.5.sisx`](sis/segaw3d_n8_1.5.sisx)
+- **N95** y otros S60 3rd / 5th: [`sis/segaw3d_n95_1.6.sisx`](sis/segaw3d_n95_1.6.sisx)
+- **N8** y otros Symbian^3 / Anna / Belle: [`sis/segaw3d_n8_1.6.sisx`](sis/segaw3d_n8_1.6.sisx)
 
 Las dos usan el mismo nombre en el teléfono: una reemplaza a la otra. Están firmados con un certificado propio: el
 teléfono tiene que aceptar aplicaciones sin firmar de Nokia (Administrador de aplicaciones > Configuración >
@@ -29,6 +29,8 @@ Instalación de software: Todas). Para los mandos hace falta [bthid-s60](https:/
   se enchufa solo en los juegos que lo traen (lo dice la cabecera del cartucho).
 - **Menú de ROMs** y **opciones**: contador de FPS, dibujo preciso o rápido, multitap, frecuencia y calidad del
   sonido, idioma (castellano o inglés; por defecto, el del teléfono).
+- **Partidas guardadas**: 8 ranuras por juego, con la fecha y una captura de la pantalla. Y la memoria a pila de los
+  cartuchos que la traen (Sonic 3, Phantasy Star...), que se guarda sola.
 
 ### En el N8 (Symbian^3 / Anna / Belle)
 
@@ -57,6 +59,11 @@ En el menú: arriba y abajo para elegir, OK / cruz para jugar, **Start** para la
 vuelve a la partida y la última fila, "[ Salir ]", cierra el emulador (en el N8: los botones de abajo, "Volver al
 juego" y "Salir"). En las opciones, "Cerrar emulador" (con OK) también lo cierra. Las teclas de volumen del costado
 cambian el volumen.
+
+**Guardar la partida**: con un juego abierto, en el menú la primera fila es "[ Guardar partida ]": se elige la ranura
+(a la derecha se ve la captura de lo que tiene) y OK guarda. Al elegir un juego que tiene partidas guardadas se
+elige entre "Partida nueva" o una de ellas, con su fecha y hora. En el N8, tocar una fila la elige y tocarla otra vez
+guarda o juega. Las partidas quedan en `\segaw3d\datos\partidas\`.
 
 **Wiimote** (con bthid-s60 0.10 o más nuevo): 1 / A / 2 = A / B / C, + = Start, Home o - = menú. Para usarlo
 acostado, en la app Bluetooth HID se pueden girar sus flechas (0.12). La opción **Inclinar el Wiimote** lo usa como

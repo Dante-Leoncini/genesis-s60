@@ -34,6 +34,11 @@ void emu_entrada(int entrada);   // EmuEntrada
 // el cartucho cargado soporta el Team Player (un '4' entre los perifericos de su cabecera, en 0x190)
 int emu_soporta_team_player(void);
 void emu_reiniciar(void);
+// LAS PARTIDAS: guarda (1) o carga (0) el estado de la consola en un FILE* abierto, desde donde este. 1 = bien
+int emu_estado(void* archivo, int guardar);
+// la SRAM del cartucho (los juegos que guardan con pila): cargarla al abrir la ROM, guardarla si cambio (1 = se
+// escribio). 0 si el juego no tiene
+int emu_sram(const char* ruta, int guardar);
 // un cuadro de la consola (1/60 s; 1/50 en las PAL). 'dibujar' 0: corre igual pero no arma la imagen (para alcanzar
 // al reloj cuando el telefono se atrasa)
 void emu_cuadro(const uint16_t pads[4], int dibujar);

@@ -14,6 +14,8 @@
 #include <remconcoreapitargetobserver.h>
 #include <remconinterfaceselector.h>
 #include <stdio.h>
+#include <string.h>
+#include <sys/stat.h>
 
 namespace {
 bool gTeclas[TECLAS];
@@ -168,12 +170,33 @@ void plat_pantalla(int& ancho, int& alto) {
 bool plat_tecla(int t) { return t >= 0 && t < TECLAS && gTeclas[t]; }
 
 bool plat_mando(int i, w3dEngine::MandoEstado& e) { return w3dEngine::MandoLeer(i, e); }
+bool plat_mando_acelerometro(int i, float g[3]) { return w3dEngine::MandoAcelerometro(i, g); }
 
 void plat_salir() { gSalir = true; }
 
 bool plat_espanol() {
     const TLanguage l = User::Language();
     return l == ELangSpanish || l == ELangLatinAmericanSpanish;
+}
+
+void plat_fecha(int f[6]) {
+    TTime t;
+    t.HomeTime();
+    const TDateTime d = t.DateTime();
+    f[0] = d.Year();
+    f[1] = (int)d.Month() + 1;   // (TMonth y el dia empiezan en 0)
+    f[2] = d.Day() + 1;
+    f[3] = d.Hour();
+    f[4] = d.Minute();
+    f[5] = d.Second();
+}
+
+void plat_crear_carpeta(const char* ruta) {
+    char r[256];
+    snprintf(r, sizeof(r), "%s", ruta);
+    size_t n = strlen(r);
+    while (n > 1 && (r[n - 1] == '/' || r[n - 1] == '\\')) r[--n] = 0;
+    mkdir(r, 0755);
 }
 
 #ifndef SEGA_BELLE

@@ -24,6 +24,12 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <sys/stat.h>
+#endif
 
 namespace {
 SDL_Window* gVentana = 0;
@@ -124,6 +130,29 @@ int plat_toques(Toque* t, int max) {
 }
 
 bool plat_mando_acelerometro(int, float*) { return false; }   // (en la PC no hay Wiimote)
+
+void plat_fecha(int f[6]) {
+    const time_t t = time(0);
+    const struct tm* l = localtime(&t);
+    f[0] = l->tm_year + 1900;
+    f[1] = l->tm_mon + 1;
+    f[2] = l->tm_mday;
+    f[3] = l->tm_hour;
+    f[4] = l->tm_min;
+    f[5] = l->tm_sec;
+}
+
+void plat_crear_carpeta(const char* ruta) {
+    char r[512];
+    snprintf(r, sizeof(r), "%s", ruta);
+    size_t n = strlen(r);
+    while (n > 1 && (r[n - 1] == '/' || r[n - 1] == '\\')) r[--n] = 0;   // (mkdir de Windows no quiere la barra)
+#ifdef _WIN32
+    _mkdir(r);
+#else
+    mkdir(r, 0755);
+#endif
+}
 
 bool plat_mando(int i, w3dEngine::MandoEstado& e) {
     using namespace w3dEngine;
