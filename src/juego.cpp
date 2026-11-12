@@ -340,11 +340,11 @@ void leer_pads(uint16_t pads[4]) {
         MandoEstado e;
         if (plat_mando(i, e)) {
             pads[i] = pad_de_mando(e);
-            // (la cruceta manda: con una flecha apretada el volante no aprieta los costados. Como en una cruceta, abajo
-            // sale sin derecha: Sonic se hace bolita solo con abajo y sin izquierda ni derecha)
+            // (el volante se suma a la cruceta: inclinado a la derecha + abajo = la diagonal. Si la cruceta aprieta
+            // izquierda o derecha, mandan sus costados: nunca izquierda y derecha juntas)
             if (gOpc.inclinacion && !gEnMenu && e.tipo == MandoWii) {
                 const uint16_t giro = volante(i);
-                if (!(pads[i] & (MD_ARRIBA | MD_ABAJO | MD_IZQ | MD_DER))) pads[i] |= giro;
+                if (!(pads[i] & (MD_IZQ | MD_DER))) pads[i] |= giro;
             }
             conectados |= 1 << i;
             if (e.botones[MandoGuia] || e.botones[MandoSelect]) gGuia = true;

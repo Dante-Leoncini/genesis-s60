@@ -10,8 +10,8 @@ suma una interfaz propia pensada para el teléfono: menú de ROMs, hasta **4 man
 
 Los instaladores están en [`sis/`](sis/), con la versión en el nombre:
 
-- **N95** y otros S60 3rd / 5th: [`sis/segaw3d_n95_1.4.sisx`](sis/segaw3d_n95_1.4.sisx)
-- **N8** y otros Symbian^3 / Anna / Belle: [`sis/segaw3d_n8_1.4.sisx`](sis/segaw3d_n8_1.4.sisx)
+- **N95** y otros S60 3rd / 5th: [`sis/segaw3d_n95_1.5.sisx`](sis/segaw3d_n95_1.5.sisx)
+- **N8** y otros Symbian^3 / Anna / Belle: [`sis/segaw3d_n8_1.5.sisx`](sis/segaw3d_n8_1.5.sisx)
 
 Las dos usan el mismo nombre en el teléfono: una reemplaza a la otra. Están firmados con un certificado propio: el
 teléfono tiene que aceptar aplicaciones sin firmar de Nokia (Administrador de aplicaciones > Configuración >
@@ -61,8 +61,8 @@ cambian el volumen.
 **Wiimote** (con bthid-s60 0.10 o más nuevo): 1 / A / 2 = A / B / C, + = Start, Home o - = menú. Para usarlo
 acostado, en la app Bluetooth HID se pueden girar sus flechas (0.12). La opción **Inclinar el Wiimote** lo usa como
 volante: acostado con la cruceta a la izquierda, derecho no aprieta nada; inclinado va apretando izquierda o
-derecha, más seguido cuanto más se inclina, y bien inclinado (unos 33°) queda apretado. Mientras se aprieta una
-flecha de la cruceta, manda la cruceta (abajo sale sin costado: Sonic se hace bolita).
+derecha, más seguido cuanto más se inclina, y bien inclinado (unos 33°) queda apretado. Se suma a la cruceta:
+inclinado a la derecha y abajo es la diagonal. Si la cruceta aprieta izquierda o derecha, mandan sus costados.
 
 ## Las ROMs
 
