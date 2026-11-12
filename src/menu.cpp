@@ -1,5 +1,6 @@
 #include "menu.h"
 #include "pantalla.h"
+#include "version.h"
 #include <dirent.h>
 #include <ctype.h>
 #include <stdio.h>
@@ -545,8 +546,10 @@ void menu_abrir(const char* carpeta, const char* ultima, bool hayJuego) {
         gRoms[gCantidad].tipo = FILA_SALIR;
         gCantidad++;
     }
+    // con un juego cargado, arriba de todo con "Guardar partida" elegida (si no, quedaba fuera de la pantalla); si no,
+    // la ultima ROM jugada
     gRomsL.elegida = 0;
-    for (int i = 0; ultima && ultima[0] && i < gCantidad; i++)
+    for (int i = 0; !gFilaGuardar && ultima && ultima[0] && i < gCantidad; i++)
         if (gRoms[i].tipo == FILA_ROM && !strcmp(gRoms[i].ruta, ultima)) gRomsL.elegida = i;
     // (la elegida a la mitad de la lista)
     gRomsL.desp = gRomsL.elegida * gFila - lista_alto() / 2;
@@ -697,7 +700,7 @@ bool menu_dibujar(uint16_t* img) {
     char linea[64];
     snprintf(linea, sizeof(linea), "%d", menu_cantidad());
     // (el aviso: con teclas en el pie; con el dedo en la cabecera, que el pie tiene los botones)
-    dibujar_cabecera(img, gAvisoHasta && gTactil ? gAviso : "MEGA DRIVE W3D", linea, boton_cabecera());
+    dibujar_cabecera(img, gAvisoHasta && gTactil ? gAviso : "MEGA DRIVE W3D " SEGAW3D_VERSION, linea, boton_cabecera());
     if (menu_cantidad() == 0) {
         texto(img, 8, lista_y0() + 24, tr("No hay ROMs en", "No ROMs in"), TEXTO);
         texto(img, 8, lista_y0() + 36, gCarpeta, TEXTO, 39);

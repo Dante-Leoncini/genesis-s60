@@ -8,7 +8,7 @@ telefono estan (carpeta=...) y el emulador arranca con el menu de esa carpeta.
     python symbian/sis/armar_pkg.py --carpeta e:/data/sega/
     python symbian/sis/armar_pkg.py --belle             el del N8 (Symbian^3 / Anna / Belle)
     python symbian/sis/armar_pkg.py --publicar          los dos, copiados a sis/ con la version en el nombre
-                                                        (sis/segaw3d_n95_1.7.sisx, sis/segaw3d_n8_1.7.sisx)
+                                                        (sis/segaw3d_n95_1.8.sisx, sis/segaw3d_n8_1.8.sisx)
 
 Desde probar.py: en C:, con una prueba.txt (el guion de botones y la salida) y rom= (directo a Mega Bomberman, sin el
 menu). El .sisx queda en build/. Antes hay que compilar (symbian/compilar.bat).
@@ -26,8 +26,16 @@ CERTIFICADO = os.path.join(AQUI, 'segaw3d_firma.cer')
 CLAVE = os.path.join(AQUI, 'segaw3d_firma.key')
 HERRAMIENTAS = r'C:\epoc32\tools'
 UID = '0xE5E6A001'
-# la version del instalador (mayor, menor): va en el .pkg y en el nombre de los publicados en sis/
-VERSION = (1, 7)
+# la version (mayor, menor), la de src/version.h (la que muestra el menu): va en el .pkg y en el nombre de los
+# publicados en sis/
+def _version():
+    import re
+    with open(os.path.join(RAIZ, 'src', 'version.h')) as f:
+        m = re.search(r'SEGAW3D_VERSION\s+"(\d+)\.(\d+)"', f.read())
+    return int(m.group(1)), int(m.group(2))
+
+
+VERSION = _version()
 PUBLICADOS = os.path.join(RAIZ, 'sis')
 EXE = r'\epoc32\release\armv5\urel\segaw3d.exe'
 # la variante de Symbian^3 / Anna / Belle (N8): se instala con el mismo nombre (una reemplaza a la otra)
@@ -55,7 +63,7 @@ CABEZA = r''';
 
 "\epoc32\data\z\resource\apps\segaw3d.rsc"                     -"%(u)s:\resource\apps\segaw3d.rsc"
 "\epoc32\data\z\private\10003a3f\import\apps\segaw3d_reg.rsc"  -"%(u)s:\private\10003a3f\import\apps\segaw3d_reg.rsc"
-"\epoc32\data\z\resource\apps\segaw3d_icono.mif"               -"%(u)s:\resource\apps\segaw3d_icono.mif"
+"\epoc32\data\z\resource\apps\segaw3d_mando.mif"               -"%(u)s:\resource\apps\segaw3d_mando.mif"
 '''
 
 

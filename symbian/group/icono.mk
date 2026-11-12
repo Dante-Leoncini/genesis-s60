@@ -1,6 +1,6 @@
 #
 # El icono de la aplicacion: un mando de Mega Drive (symbian\gfx\segaw3d_icono.svg) en
-# \resource\apps\segaw3d_icono.mif, armado como el del editor de Whisk3D (platform\symbian\group\Icons_scalable_dc.mk)
+# \resource\apps\segaw3d_mando.mif, armado como el del editor de Whisk3D (platform\symbian\group\Icons_scalable_dc.mk)
 #
 
 ifeq (WINS,$(findstring WINS, $(PLATFORM)))
@@ -10,7 +10,7 @@ ZDIR=$(EPOCROOT)epoc32\data\z
 endif
 
 TARGETDIR=$(ZDIR)\resource\apps
-ICONTARGETFILENAME=$(TARGETDIR)\segaw3d_icono.mif
+ICONTARGETFILENAME=$(TARGETDIR)\segaw3d_mando.mif
 
 ICONDIR=..\gfx
 

@@ -20,6 +20,6 @@ RESOURCE LOCALISABLE_APP_INFO r_segaw3d_localisable_app_info {
     caption_and_icon = CAPTION_AND_ICON_INFO {
         caption = "Mega Drive W3D";
         number_of_icons = 1;
-        icon_file = "\\resource\\apps\\segaw3d_icono.mif";
+        icon_file = "\\resource\\apps\\segaw3d_mando.mif";
     };
 }

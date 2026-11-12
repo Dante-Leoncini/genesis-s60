@@ -10,8 +10,8 @@ suma una interfaz propia pensada para el teléfono: menú de ROMs, hasta **4 man
 
 Los instaladores están en [`sis/`](sis/), con la versión en el nombre:
 
-- **N95** y otros S60 3rd / 5th: [`sis/segaw3d_n95_1.7.sisx`](sis/segaw3d_n95_1.7.sisx)
-- **N8** y otros Symbian^3 / Anna / Belle: [`sis/segaw3d_n8_1.7.sisx`](sis/segaw3d_n8_1.7.sisx)
+- **N95** y otros S60 3rd / 5th: [`sis/segaw3d_n95_1.8.sisx`](sis/segaw3d_n95_1.8.sisx)
+- **N8** y otros Symbian^3 / Anna / Belle: [`sis/segaw3d_n8_1.8.sisx`](sis/segaw3d_n8_1.8.sisx)
 
 Las dos usan el mismo nombre en el teléfono: una reemplaza a la otra. Están firmados con un certificado propio: el
 teléfono tiene que aceptar aplicaciones sin firmar de Nokia (Administrador de aplicaciones > Configuración >
@@ -111,7 +111,7 @@ python symbian/sis/armar_pkg.py --belle      el del N8: build/segaw3d_belle.sisx
 python symbian/sis/armar_pkg.py --publicar   los dos, con la versión, en sis/
 ```
 
-La versión está en `symbian/sis/armar_pkg.py` (`VERSION`).
+La versión está en `src/version.h` (la usan el menú y el instalador).
 
 Después de cambiar las macros del `.mmp` o de actualizar PicoDrive: `symbian\compilar.bat limpio`.
 
