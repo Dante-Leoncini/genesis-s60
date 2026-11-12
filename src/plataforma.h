@@ -30,6 +30,8 @@ bool plat_mando(int i, w3dEngine::MandoEstado& e);
 bool plat_mando_acelerometro(int i, float g[3]);
 // el juego pide salir (la tecla roja la maneja el sistema)
 void plat_salir();
+// lo que se contesto en la pregunta de la tele (juego_preguntar_tv): SALIDA_CLONAR, SALIDA_TV o SALIDA_TV_CONTROLES
+void plat_tv_elegida(int salida);
 
 // LA PANTALLA TACTIL (el N8; en la PC, el mouse con --tactil): si hay, y los dedos apoyados ahora, en pixeles de la
 // pantalla del telefono (hasta 'max'; devuelve cuantos)

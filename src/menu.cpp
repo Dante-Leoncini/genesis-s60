@@ -1,5 +1,6 @@
 #include "menu.h"
 #include "controles.h"
+#include "juego.h"
 #include "pantalla.h"
 #include "version.h"
 #include <dirent.h>
@@ -47,6 +48,12 @@ int gCtrlJugador = -1;   // -1 = la lista de los jugadores
 bool gEsperando = false;
 enum { CTRL_FILA_FABRICA = CTRL_BOTONES, CTRL_FILA_VOLVER };
 
+// LA PREGUNTA DE LA TELE: tres filas (clonar, solo la tele, tele + controles); encima de todo
+bool gEnTv = false;
+int gTvSalida = 0;
+char gTvSolo[40] = "";
+const int kTvSalidas[3] = { SALIDA_CLONAR, SALIDA_TV, SALIDA_TV_CONTROLES };
+
 // el aviso ("Partida guardada"): con teclas en el pie, con el dedo en la cabecera
 char gAviso[48] = "";
 uint64_t gAvisoHasta = 0;
@@ -68,7 +75,7 @@ struct Lista {
     int elegida;
     int desp;
 };
-Lista gRomsL = { 0, 0 }, gOpcL = { 0, 0 }, gPartL = { 0, 0 }, gCtrlL = { 0, 0 };
+Lista gRomsL = { 0, 0 }, gOpcL = { 0, 0 }, gPartL = { 0, 0 }, gCtrlL = { 0, 0 }, gTvL = { 1, 0 };
 
 // las opciones (con un juego cargado, la pausa: arriba las acciones de la partida)
 MenuOpciones* gOpciones = 0;
@@ -359,6 +366,27 @@ void control_texto(int fila, char* nombre, char* valor, int n) {
     }
 }
 
+// ------------------------------------------------------------------------------------------- la tele
+const char* tv_texto(int fila) {
+    if (fila == 1) return gTvSolo;
+    return fila == 0 ? tr("Clonar la pantalla", "Mirror the screen") : tr("Tele + controles", "TV + controls");
+}
+
+MenuAccion elegir_tv(int fila) {
+    gEnTv = false;
+    gCambio = true;
+    gTvSalida = kTvSalidas[fila < 0 || fila > 2 ? 0 : fila];
+    return MENU_TV;
+}
+
+MenuAccion actualizar_tv(int botones, int nuevos, uint64_t ahora) {
+    if (nuevos & MENU_VOLVER) return elegir_tv(0);
+    if (nuevos & MENU_ELEGIR) return elegir_tv(gTvL.elegida);
+    const int mueve = botones & (MENU_ARRIBA | MENU_ABAJO);
+    if (mover(nuevos, mueve, ahora)) mover_lista(gTvL, 3, mueve);
+    return MENU_NADA;
+}
+
 // ------------------------------------------------------------------------------------------- las opciones
 // las que se muestran: con un juego cargado, primero las de la partida; las de pantalla solo donde se pueden elegir
 void armar_opciones() {
@@ -515,7 +543,7 @@ MenuAccion elegir_rom(int i) {
 
 // ------------------------------------------------------------------------------------------- el dibujo
 // LAS FILAS de una lista (con el desplazamiento, recortadas a la zona de la lista)
-enum { FILAS_ROMS, FILAS_OPCIONES, FILAS_PARTIDAS, FILAS_CONTROLES };
+enum { FILAS_ROMS, FILAS_OPCIONES, FILAS_PARTIDAS, FILAS_CONTROLES, FILAS_TV };
 void dibujar_filas(uint16_t* img, const Lista& l, int n, int cuales) {
     const int y0 = lista_y0(), y1 = y0 + lista_alto();
     const int ancho = cuales == FILAS_PARTIDAS ? partidas_ancho() : gW;
@@ -535,6 +563,8 @@ void dibujar_filas(uint16_t* img, const Lista& l, int n, int cuales) {
             const int lv = (int)strlen(valor);
             texto(img, 8, ty, nombre, c, lv ? (gW - 24) / 8 - lv : 38);
             texto(img, gW - 8 - lv * 8, ty, valor, elegida ? TITULO : c);
+        } else if (cuales == FILAS_TV) {
+            texto(img, 8, ty, tv_texto(i), c, (gW - 16) / 8);
         } else if (cuales == FILAS_PARTIDAS) {
             partida_texto(i, nombre, sizeof(nombre));
             texto(img, 6, ty, nombre, c, (ancho - 8) / 8);
@@ -563,6 +593,7 @@ void dibujar_mini(uint16_t* img) {
 
 // el boton de la cabecera (con el dedo) de cada pantalla
 const char* boton_cabecera() {
+    if (gEnTv) return tr("CLONAR", "MIRROR");
     if (gEnPartidas || gEnControles) return tr("VOLVER", "BACK");
     if (gEnOpciones) return gHayJuego ? tr("JUGAR", "PLAY") : tr("LISTO", "DONE");
     return gHayJuego ? "MENU" : tr("OPCIONES", "OPTIONS");
@@ -602,6 +633,7 @@ void botones_pie(int* volverX0, int* salirX0, int* salirX1) {
 // el boton de la cabecera, tocado (con el dedo)
 MenuAccion tocar_cabecera() {
     gCambio = true;
+    if (gEnTv) return elegir_tv(0);
     if (gEnControles) {
         controles_atras();
         return MENU_NADA;
@@ -644,6 +676,17 @@ void menu_texto(uint16_t* img, int ancho, int alto, int x, int y, const char* s,
 void menu_opciones(MenuOpciones* o) { gOpciones = o; }
 
 void menu_partidas(const MenuFuentePartidas* fuente) { gFuente = fuente; }
+
+void menu_preguntar_tv(int ancho, int alto) {
+    snprintf(gTvSolo, sizeof(gTvSolo), menu_tr("Solo la tele (%dx%d)", "TV only (%dx%d)"), ancho, alto);
+    gEnTv = true;
+    gTvL.elegida = 1;
+    gTvL.desp = 0;
+    gAntes = ~0;   // (lo que venia apretado no cuenta hasta soltarlo)
+    gCambio = true;
+}
+
+int menu_tv_salida() { return gTvSalida; }
 
 int menu_ranura() { return gRanura; }
 
@@ -739,6 +782,7 @@ MenuAccion menu_actualizar(int botones, uint64_t ahora) {
         gAvisoHasta = 0;
         gCambio = true;
     }
+    if (gEnTv) return actualizar_tv(botones, nuevos, ahora);
     if (gEnControles) return actualizar_controles(botones, nuevos, ahora);
     if (gEnPartidas) return actualizar_partidas(botones, nuevos, ahora);
     if (gEnOpciones) return actualizar_opciones(botones, nuevos, ahora);
@@ -779,8 +823,8 @@ MenuAccion menu_actualizar(int botones, uint64_t ahora) {
 }
 
 MenuAccion menu_toque(int tipo, int x, int y) {
-    Lista& l = gEnControles ? gCtrlL : gEnPartidas ? gPartL : gEnOpciones ? gOpcL : gRomsL;
-    const int n = gEnControles ? controles_filas() : gEnPartidas ? gPartN : gEnOpciones ? gOpcsN : gCantidad;
+    Lista& l = gEnTv ? gTvL : gEnControles ? gCtrlL : gEnPartidas ? gPartL : gEnOpciones ? gOpcL : gRomsL;
+    const int n = gEnTv ? 3 : gEnControles ? controles_filas() : gEnPartidas ? gPartN : gEnOpciones ? gOpcsN : gCantidad;
     if (tipo == TOQUE_APOYA) {
         gToqueX0 = x;
         gToqueY0 = y;
@@ -804,7 +848,7 @@ MenuAccion menu_toque(int tipo, int x, int y) {
     gCambio = true;
     if (gZona == ZONA_CAB) return gToqueX0 >= boton_cabecera_x() ? tocar_cabecera() : MENU_NADA;
     if (gZona == ZONA_PIE) {
-        if (gEnOpciones || gEnPartidas || gEnControles) return MENU_NADA;
+        if (gEnOpciones || gEnPartidas || gEnControles || gEnTv) return MENU_NADA;
         int volverX0, salirX0, salirX1;
         botones_pie(&volverX0, &salirX0, &salirX1);
         if (gToqueX0 >= salirX0 && gToqueX0 < salirX1) return MENU_SALIR;
@@ -812,6 +856,10 @@ MenuAccion menu_toque(int tipo, int x, int y) {
     }
     const int i = (y - lista_y0() + l.desp) / gFila;
     if (y < lista_y0() || i < 0 || i >= n) return MENU_NADA;
+    if (gEnTv) {
+        l.elegida = i;
+        return elegir_tv(i);
+    }
     // las partidas: el primer toque la elige (se ve la captura), el segundo en la misma la confirma
     if (gEnPartidas) {
         if (gToqueX0 >= partidas_ancho()) return MENU_NADA;   // (la captura)
@@ -837,6 +885,13 @@ bool menu_dibujar(uint16_t* img) {
     gCambio = false;
     rectangulo(img, 0, 0, gW, gH, FONDO);
     const char* version = "MEGA DRIVE W3D " SEGAW3D_VERSION;
+    if (gEnTv) {
+        dibujar_cabecera(img, tr("PANTALLA EXTERNA", "EXTERNAL DISPLAY"), 0);
+        dibujar_filas(img, gTvL, 3, FILAS_TV);
+        dibujar_pie(img, gTactil ? tr("Toca una opcion", "Tap an option")
+                                 : tr("OK: elegir   Der: clonar", "OK: choose   Right: mirror"));
+        return true;
+    }
     if (gEnControles) {
         char titulo[32];
         if (gCtrlJugador < 0) snprintf(titulo, sizeof(titulo), "%s", tr("CONTROLES", "CONTROLS"));

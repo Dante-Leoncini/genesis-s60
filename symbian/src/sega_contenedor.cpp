@@ -137,3 +137,6 @@ void CSegaContenedor::Draw(const TRect& aRect) const {
     gc.Clear(aRect);
     juego_redibujar();
 }
+
+// (el N95: la salida de TV la maneja el sistema; nunca se pregunta)
+void plat_tv_elegida(int) {}

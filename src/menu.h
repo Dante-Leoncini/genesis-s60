@@ -20,7 +20,7 @@ enum {
 // lo que el menu le contesta al juego (MENU_JUGAR y MENU_GUARDAR: la ranura en menu_ranura; MENU_CAMBIO_CONTROLES:
 // se cambio un control, guardarlos)
 enum MenuAccion { MENU_NADA, MENU_JUGAR, MENU_SEGUIR, MENU_SALIR, MENU_CAMBIO_OPCIONES, MENU_GUARDAR,
-                  MENU_CAMBIO_CONTROLES };
+                  MENU_CAMBIO_CONTROLES, MENU_TV };
 
 // CON UN JUEGO CARGADO el menu abre en la PAUSA: guardar la partida, cargar una guardada, cargar otra ROM, los
 // controles, las opciones, volver al juego y cerrar. Sin juego, la lista de las ROMs (Start: las opciones)
@@ -42,6 +42,11 @@ struct MenuFuentePartidas {
 void menu_partidas(const MenuFuentePartidas* fuente);
 // despues de MENU_JUGAR: -1 = partida nueva, 0.. = cargar esa ranura; despues de MENU_GUARDAR: donde guardar
 int menu_ranura();
+// LA PREGUNTA DE LA TELE (el N8, al enchufar el cable): una pantalla del menu, encima de todo, que se contesta con el
+// mando, las teclas o el dedo (sin levantarse a tocar el telefono). Despues de MENU_TV, menu_tv_salida() dice lo
+// elegido: SALIDA_CLONAR, SALIDA_TV o SALIDA_TV_CONTROLES (juego.h); cancelar es clonar
+void menu_preguntar_tv(int ancho, int alto);
+int menu_tv_salida();
 // un aviso en el pie del menu ("Partida guardada") hasta 'hastaUs' (el reloj de menu_actualizar)
 void menu_aviso(const char* texto, uint64_t hastaUs);
 

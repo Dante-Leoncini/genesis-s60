@@ -130,6 +130,7 @@ int plat_toques(Toque* t, int max) {
 }
 
 bool plat_mando_acelerometro(int, float*) { return false; }   // (en la PC no hay Wiimote)
+void plat_tv_elegida(int) {}   // (en la PC no hay tele)
 
 void plat_fecha(int f[6]) {
     const time_t t = time(0);

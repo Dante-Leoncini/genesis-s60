@@ -134,7 +134,6 @@ LIBRARY         hal.lib                       // el reloj rapido
 #ifdef SEGA_MMP_BELLE
 LIBRARY         libglesv2.lib libegl.lib      // OpenGL ES 2.0 + EGL
 LIBRARY         accmonitor.lib                // el cable de la TV (HDMI / video compuesto)
-LIBRARY         aknnotify.lib bafl.lib        // la pregunta de la TV (CAknGlobalListQuery)
 #else
 LIBRARY         bitgdi.lib fbscli.lib         // la pantalla: el contexto del DSA y el bitmap de la imagen
 #endif

@@ -38,7 +38,6 @@ private:
 class CIdle;
 
 #ifdef SEGA_BELLE
-class CPreguntaTv;
 class CSegaContenedor : public CCoeControl {
 public:
     void ConstructL();
@@ -64,7 +63,6 @@ private:
     EGLSurface iEglSurface;
     EGLContext iEglContext;
     CIdle* iBucle;
-    CPreguntaTv* iPregunta;
     TBool iJuegoIniciado;
     TBool iPausado;
     TInt iCuadros;

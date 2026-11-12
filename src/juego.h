@@ -14,6 +14,9 @@ bool juego_cuadro();
 // (es el mando). En el menu, el telefono lo muestra igual (para tocarlo)
 enum { SALIDA_TELEFONO, SALIDA_CLONAR, SALIDA_TV, SALIDA_TV_CONTROLES };
 void juego_salida(int salida);
+// LA TELE: se enchufo una pantalla externa de ancho x alto: el juego pregunta que mostrar en su menu (se contesta con
+// el mando, las teclas o el dedo; si se estaba jugando, despues sigue la partida) y contesta con plat_tv_elegida
+void juego_preguntar_tv(int ancho, int alto);
 // despues de juego_cuadro (con la superficie de la TV puesta): la misma imagen en la TV, de w x h
 void juego_dibujar_tv(int w, int h);
 // la pantalla se borro (la app volvio al frente, otra ventana la tapo): el proximo cuadro se dibuja entero aunque no

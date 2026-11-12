@@ -26,8 +26,6 @@
 #include <e32base.h>
 #include <hal.h>
 #include <accmonitor.h>
-#include <akngloballistquery.h>
-#include <badesca.h>
 #include <GLES2/gl2.h>
 
 namespace {
@@ -97,54 +95,15 @@ void SoltarSuperficieTv(EGLDisplay aDpy, EGLSurface aTelefono, EGLContext aCtx) 
 }
 }
 
-// ------------------------------------------------------------------------------------- la pregunta de la TV
-// una lista global de Avkon (no necesita recursos), asincronica: la respuesta llega en RunL
-class CPreguntaTv : public CActive {
-public:
-    CPreguntaTv(CSegaContenedor& aDuenio) : CActive(EPriorityStandard), iDuenio(aDuenio), iLista(0) {
-        CActiveScheduler::Add(this);
-    }
-    ~CPreguntaTv() {
-        Cancel();
-        delete iLista;
-    }
-    void PreguntarL(TInt aW, TInt aH) {
-        if (IsActive()) return;
-        if (!iLista) iLista = CAknGlobalListQuery::NewL();
-        CDesCArrayFlat* items = new (ELeave) CDesCArrayFlat(3);
-        CleanupStack::PushL(items);
-        // (textos cortos: con los largos la lista global no se muestra, KErrOverflow)
-        TBuf<40> solo;
-        const TBool en = menu_en_ingles();
-        if (en) solo.Format(_L("TV only (%dx%d)"), aW, aH);
-        else solo.Format(_L("Solo la tele (%dx%d)"), aW, aH);
-        if (en) {
-            items->AppendL(_L("Mirror the screen"));
-            items->AppendL(solo);
-            items->AppendL(_L("TV + controls"));
-            iLista->SetHeadingL(_L("External display"));
-        } else {
-            items->AppendL(_L("Clonar la pantalla"));
-            items->AppendL(solo);
-            items->AppendL(_L("Tele + controles"));
-            iLista->SetHeadingL(_L("Pantalla externa"));
-        }
-        iLista->ShowListQueryL(items, iStatus, 0);
-        CleanupStack::PopAndDestroy(items);
-        SetActive();
-    }
-private:
-    void RunL() {
-        const TInt elegido = iStatus.Int();
-        w3dLogf("tv: se eligio %d", (int)elegido);
-        iDuenio.ElegirSalida(elegido == 1 ? SALIDA_TV : elegido == 2 ? SALIDA_TV_CONTROLES : SALIDA_CLONAR);
-    }
-    void DoCancel() {
-        if (iLista) iLista->CancelListQuery();
-    }
-    CSegaContenedor& iDuenio;
-    CAknGlobalListQuery* iLista;
-};
+// la pregunta de la TV la hace el juego en su menu (juego_preguntar_tv): se contesta con el mando, sin tocar el
+// telefono. (La lista global de Avkon de antes se cancelaba sola al cambiar de app y habia que tocarla)
+namespace {
+CSegaContenedor* gContenedor = 0;
+}
+
+void plat_tv_elegida(int salida) {
+    if (gContenedor) gContenedor->ElegirSalida(salida);
+}
 
 // --------------------------------------------------------------------------------------------- plataforma.h
 bool plat_es_tactil() {
@@ -180,7 +139,7 @@ void CSegaContenedor::ConstructL() {
         gAcc = 0;
         w3dLogf("tv: sin AccMonitor (%d)", (int)errorAcc);
     }
-    iPregunta = new (ELeave) CPreguntaTv(*this);
+    gContenedor = this;
     juego_iniciar(22050);
     iJuegoIniciado = ETrue;
     iBucle = CIdle::NewL(CActive::EPriorityIdle);
@@ -225,7 +184,7 @@ void CSegaContenedor::IniciarEgl() {
 
 CSegaContenedor::~CSegaContenedor() {
     delete iBucle;
-    delete iPregunta;
+    gContenedor = 0;
     SoltarSuperficieTv(iEglDisplay, iEglSurface, iEglContext);
     delete gTv.dev;
     gTv.dev = 0;
@@ -299,12 +258,11 @@ void CSegaContenedor::RevisarTv() {
         gTv.pantW = tam.iWidth;
         gTv.pantH = tam.iHeight;
         w3dLogf("tv: enchufada, %dx%d: se pregunta que mostrar", (int)tam.iWidth, (int)tam.iHeight);
-        TRAPD(error, iPregunta->PreguntarL(tam.iWidth, tam.iHeight));
-        if (error != KErrNone) w3dLogf("tv: no se pudo preguntar (%d)", (int)error);
+        juego_preguntar_tv(tam.iWidth, tam.iHeight);
+        w3dLogBajar();
     } else if (!hay && gTv.enchufada) {
         w3dLog("tv: desenchufada: todo al telefono");
         gTv.enchufada = EFalse;
-        iPregunta->Cancel();
         ElegirSalida(SALIDA_TELEFONO);
         delete gTv.dev;
         gTv.dev = 0;

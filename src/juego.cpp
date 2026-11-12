@@ -80,6 +80,8 @@ int gDedoMenu = -1, gMenuDedoX = 0, gMenuDedoY = 0;
 bool gEsperarSoltar = false;
 // a donde va la imagen (juego_salida: la TV del N8)
 int gSalida = SALIDA_TELEFONO;
+// la pregunta de la tele se hizo en medio de la partida: al contestar, se vuelve a jugar
+bool gTvVolverAlJuego = false;
 
 // true mientras haya que esperar que se levanten los dedos
 bool esperando_soltar() {
@@ -655,6 +657,16 @@ bool cuadro_menu(int pw, int ph, uint64_t ahora) {
         emu_sonido_volumen(gOpc.volumen * 256 / 10);
         w3dLogf("juego: opciones fps %d, multitap %d, escala %d, suave %d, tactil %d", gOpc.fps, gOpc.multitap,
                 gOpc.escala, gOpc.suave, gOpc.tactil);
+    } else if (accion == MENU_TV) {
+        w3dLogf("juego: tv, se eligio la salida %d", menu_tv_salida());
+        plat_tv_elegida(menu_tv_salida());
+        if (gTvVolverAlJuego && gCargada) {
+            gTvVolverAlJuego = false;
+            a_la_partida();
+            gGuiaAntes = gGuia;
+            gBorrarAntes = true;
+            return false;
+        }
     } else if (accion == MENU_CAMBIO_CONTROLES) {
         char ruta[512];
         snprintf(ruta, sizeof(ruta), "%scontroles.txt", plat_carpeta_datos());
@@ -880,6 +892,13 @@ void juego_dibujar_tv(int w, int h) {
     else pantalla_modo(gOpc.escala, gOpc.suave);
     pantalla_dibujar_externa(w, h);
     dibujar_volumen(w, h);
+}
+
+void juego_preguntar_tv(int ancho, int alto) {
+    gTvVolverAlJuego = !gEnMenu && gCargada;
+    if (!gEnMenu) abrir_menu();
+    menu_preguntar_tv(ancho, alto);
+    w3dLogf("juego: tv de %dx%d: se pregunta en el menu", ancho, alto);
 }
 
 void juego_redibujar() {
