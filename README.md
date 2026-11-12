@@ -10,8 +10,8 @@ suma una interfaz propia pensada para el teléfono: menú de ROMs, hasta **4 man
 
 Los instaladores están en [`sis/`](sis/), con la versión en el nombre:
 
-- **N95** y otros S60 3rd / 5th: [`sis/segaw3d_n95_1.6.sisx`](sis/segaw3d_n95_1.6.sisx)
-- **N8** y otros Symbian^3 / Anna / Belle: [`sis/segaw3d_n8_1.6.sisx`](sis/segaw3d_n8_1.6.sisx)
+- **N95** y otros S60 3rd / 5th: [`sis/segaw3d_n95_1.7.sisx`](sis/segaw3d_n95_1.7.sisx)
+- **N8** y otros Symbian^3 / Anna / Belle: [`sis/segaw3d_n8_1.7.sisx`](sis/segaw3d_n8_1.7.sisx)
 
 Las dos usan el mismo nombre en el teléfono: una reemplaza a la otra. Están firmados con un certificado propio: el
 teléfono tiene que aceptar aplicaciones sin firmar de Nokia (Administrador de aplicaciones > Configuración >

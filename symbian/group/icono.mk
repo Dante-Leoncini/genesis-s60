@@ -1,6 +1,6 @@
 #
-# El icono de la aplicacion: el de Whisk3D (el SVG del editor, platform\symbian\gfx) en
-# \resource\apps\segaw3d_icono.mif, armado como el del editor (platform\symbian\group\Icons_scalable_dc.mk)
+# El icono de la aplicacion: un mando de Mega Drive (symbian\gfx\segaw3d_icono.svg) en
+# \resource\apps\segaw3d_icono.mif, armado como el del editor de Whisk3D (platform\symbian\group\Icons_scalable_dc.mk)
 #
 
 ifeq (WINS,$(findstring WINS, $(PLATFORM)))
@@ -12,7 +12,7 @@ endif
 TARGETDIR=$(ZDIR)\resource\apps
 ICONTARGETFILENAME=$(TARGETDIR)\segaw3d_icono.mif
 
-ICONDIR=..\..\..\..\Whisk3D\platform\symbian\gfx
+ICONDIR=..\gfx
 
 do_nothing :
 	@rem do_nothing
@@ -31,7 +31,7 @@ CLEANLIB : do_nothing
 # roto; /V3 deja el SVGB de siempre
 RESOURCE :
 	mifconv $(ICONTARGETFILENAME) \
-		/V3 /c32 $(ICONDIR)\qgn_menu_whisk3D.svg
+		/V3 /c32 $(ICONDIR)\segaw3d_icono.svg
 
 FREEZE : do_nothing
 
